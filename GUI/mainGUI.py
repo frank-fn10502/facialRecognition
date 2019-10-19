@@ -2,9 +2,10 @@
 
 # Form implementation generated from reading ui file 'mainGUI.ui'
 #
-# Created by: PyQt5 UI code generator 5.12.1
+# Created by: PyQt5 UI code generator 5.13.0
 #
 # WARNING! All changes made in this file will be lost!
+
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -37,7 +38,7 @@ class Ui_MainWindow(object):
         self.display_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.display_label.setFrameShadow(QtWidgets.QFrame.Plain)
         self.display_label.setText("")
-        self.display_label.setPixmap(QtGui.QPixmap("GUI_Img/illuminati.jpg"))
+        self.display_label.setPixmap(QtGui.QPixmap("GUI/img/illuminati.jpg"))
         self.display_label.setScaledContents(True)
         self.display_label.setAlignment(QtCore.Qt.AlignCenter)
         self.display_label.setWordWrap(False)
@@ -83,5 +84,3 @@ class Ui_MainWindow(object):
         self.start_stop_button.setText(_translate("MainWindow", "開始偵測"))
         self.cutButton.setText(_translate("MainWindow", "註冊"))
         self.manualCapButton.setText(_translate("MainWindow", "重設攝像頭"))
-
-

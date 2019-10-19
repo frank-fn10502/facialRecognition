@@ -8,7 +8,7 @@ import os
 import cv2
 import time
 
-import facenet
+import backbone.facenet as facenet
 
 import tensorflow as tf
 import numpy as np

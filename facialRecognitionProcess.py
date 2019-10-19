@@ -13,16 +13,15 @@ import warnings
 import requests
 
 
-import darknet
+import backbone.darknet as darknet
 
 from PIL import Image, ImageDraw, ImageFont
 
 import facialDectionCore
 import facialRecognitionCore
 from facialRecognitionCore import Identity
-#import test
-import age_gender
-import emotion
+import ageGenderCore
+import emotionCore
 
 class CircularQueue:
     def __init__(self ,maxsize = 24):
@@ -173,7 +172,7 @@ class OutputHandler:
     def __init__(self):
         self.write = True
         self.textList = []
-        self.fileName = "./outputData/data.txt"
+        self.fileName = "./other/outputData/data.txt"
 
     def start(self):
         os.makedirs(os.path.dirname(self.fileName), exist_ok=True)
@@ -200,10 +199,10 @@ class Recognition:
 
         #------------初始化mobilenet模型和資料-gender---------------------------        
         #self.genderRecognition = test.GenderRecognitionCore()
-        self.genderAgeRec = age_gender.GenderAgeRec()
+        self.genderAgeRec = ageGenderCore.GenderAgeRec()
 
         #------------初始化模型和資料-emotion----------------------------------       
-        self.emotionRec = emotion.EmotionRec()
+        self.emotionRec = emotionCore.EmotionRec()
 
         #---------------OPENCV---------------------------------------------
         self.capDevice = 0 #'http://admin:123456@140.126.20.95/video.cgi'#0  # "./data/YouTube_Rewind_2016.mp4"
@@ -214,7 +213,7 @@ class Recognition:
         
 
         #--------------參數----------------------------------------------
-        self.jsonFilePath = 'D:/Desktop/detectionData.json'
+        self.jsonFilePath = './other/outputData/detectionData.json'
         self.writeJson    = False#True
         self.maxFaceCount = 10
         self.saveInterval = 0.5
@@ -259,7 +258,7 @@ class Recognition:
         t1.start()
         #t2.start()
         #t3.start()
-        self.facialRecognition.initFacenet("./module/20180402-114759.pb")# 初始化facenet模型和資料 20180402-114759.pb 20180408-102900.pb       
+        self.facialRecognition.initFacenet("./weights/20180402-114759.pb")# 初始化facenet模型和資料 20180402-114759.pb 20180408-102900.pb       
         self.facialRecognition.initFolderImage()
 
         #------------初始gender_age-----------------------------------  
@@ -395,33 +394,27 @@ class Recognition:
             cv2.imwrite('./temp/output.jpg', img_patch)    
             faceImage_ori_list.append(img_patch)
         
-        #t2 =  threading.Thread(target = self.__recID ,args=(faceImages ,))
-        #t2.start()
-        
-        #####
-        colorList = []
-        pre_t = time.time()
-        #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
-        colorList = self.genderAgeRec.display(faceImgInfoList ,faceImage_ori_list)
-        g_time = time.time() - pre_t    
-        
-        #####
-        
         pre_t = time.time() 
         possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
         id_time = time.time() - pre_t
+
+        colorList = []
+        for i in range(len(faceImgInfoList)):
+            colorList.append((0, 255, 0))
+        '''       
+        #####
+        pre_t = time.time()
+        #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
+        colorList = self.genderAgeRec.display(faceImgInfoList ,faceImage_ori_list)
+        g_time = time.time() - pre_t       
+        #####      
         
+        id
+
         pre_t = time.time()
         self.emotionRec.predict(faceImgInfoList ,faceImage_ori_list)
         e_time = time.time() - pre_t    
-        #t1 = threading.Thread(target = self.__recGender_Age ,args=(faceImgInfoList ,faceImage_ori_list ,))   
-        #t1.start()
-        #t1.join()
-        #t2.join()
-
-        #colorList = self.colorList
-        #possiblePassInfoList = self.possiblePassInfoList
-        
+        '''
 
         if len(possiblePassInfoList) > 0:
             for index ,(possiblePassInfo, info ,result) in enumerate( zip(possiblePassInfoList, faceImgInfoList ,resultList) ):
@@ -432,8 +425,8 @@ class Recognition:
                     #print(mostPossibleObjName)
                     #print(mostPossibleObjName.split(' ,')[0])
 
-                    if mostPossibleObjName.split(' ,')[0] != 'eq':
-                        colorList[index] = (0, 255, 0) if mostPossibleObjName.split(' ,')[0]  == 'male' else (255, 0, 0)
+                    #if mostPossibleObjName.split(' ,')[0] != 'eq':
+                    #    colorList[index] = (0, 255, 0) if mostPossibleObjName.split(' ,')[0]  == 'male' else (255, 0, 0)
 
                     if displayInfo:
                         self.displayTextList.append(["{0} [{1}][{2}][{3}]".format(result.mostPossibleName 
@@ -464,7 +457,8 @@ class Recognition:
         if displayInfo:   
             self.__drawOnImg(faceImgInfoList ,colorList)
 
-        print(f"reco gender_age: {g_time:.2f}s | reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | emotion: {e_time:.2f} | total time: {id_time + g_time + yolo_time + e_time:.4f}") 
+        #print(f"reco gender_age: {g_time:.2f}s | reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | emotion: {e_time:.2f} | total time: {id_time + g_time + yolo_time + e_time:.4f}")
+        print(f"reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | total time: {id_time + yolo_time:.4f}") 
         print("=" * 40 ,"\n")  
 
         self.postAnswer()
@@ -485,22 +479,24 @@ class Recognition:
         
 
     #-----------------------------private func----------------------------------------------
-    def __recGender_Age(self ,faceImgInfoList ,faceImage_ori_list):
-        print(f'start thread')
-        print(f'faceImgInfoList: {len(faceImgInfoList)}')
-        print(f'faceImgInfoList: {faceImage_ori_list}')
-        pre_t = time.time()
-        #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
-        self.colorList = self.genderAgeRec.display(faceImgInfoList ,faceImage_ori_list)
-        g_time = time.time() - pre_t    
-        print(f'Done g_a cost:{g_time}')
+    '''
+        def __recGender_Age(self ,faceImgInfoList ,faceImage_ori_list):
+            print(f'start thread')
+            print(f'faceImgInfoList: {len(faceImgInfoList)}')
+            print(f'faceImgInfoList: {faceImage_ori_list}')
+            pre_t = time.time()
+            #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
+            self.colorList = self.genderAgeRec.display(faceImgInfoList ,faceImage_ori_list)
+            g_time = time.time() - pre_t    
+            print(f'Done g_a cost:{g_time}')
 
-    def __recID(self ,faceImages):
-        pre_t = time.time()
-        self.possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
-        id_time = time.time() - pre_t
-        print(f'Done g_a cost:{id_time}')
 
+        def __recID(self ,faceImages):
+            pre_t = time.time()
+            self.possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
+            id_time = time.time() - pre_t
+            print(f'Done g_a cost:{id_time}')
+    '''
     def __drawOnImg(self ,faceImgInfoList ,colorList):
         if colorList == []:
             colorList.append( (0, 255, 0) )
@@ -562,9 +558,8 @@ class Recognition:
             self.facialRecognition.distTresh = config.getfloat('RecognitionCore' ,'disttresh')
             self.facialRecognition.fileRootPath = config.get('RecognitionCore' ,'imagefolder')
 
-            self.__insureHasFolder(self.jsonFilePath)
-            print(f'jsonFilePath: {self.jsonFilePath}')
-            self.__insureHasFolder(self.facialRecognition.fileRootPath)
+            self.__insureHasFolder('decDataResultPath' ,self.jsonFilePath)
+            self.__insureHasFolder('imagePath' ,self.facialRecognition.fileRootPath)
 
         except FileNotFoundError:
             print('你的cfg檔案好像不見了!!!')
@@ -575,8 +570,9 @@ class Recognition:
 
         return True
 
-    def __insureHasFolder(self ,path):
+    def __insureHasFolder(self ,name ,path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
+        print(f'{name}: {self.jsonFilePath}')
 
     def __initCapDevice(self):
         if self.capDevice != '-1' :
@@ -623,7 +619,6 @@ class Recognition:
                 self.c_w = sp[1]/ darknet.network_width(self.facialDetection.netMain)#self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)  / darknet.network_width(self.facialDetection.netMain)
                 self.c_h = sp[0]/ darknet.network_height(self.facialDetection.netMain)#self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / darknet.network_height(self.facialDetection.netMain) 
   
-
     def __getImge(self):
         '''
         while True:

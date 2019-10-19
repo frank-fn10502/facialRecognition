@@ -16,8 +16,8 @@ from PyQt5.QtCore import QTimer
 import cv2
 
 # import my customize window
-from mainGUI import Ui_MainWindow
-from registerDialog import Ui_Dialog
+from GUI.mainGUI import Ui_MainWindow
+from GUI.registerDialog import Ui_Dialog
 
 from PIL import Image, ImageDraw, ImageFont
 

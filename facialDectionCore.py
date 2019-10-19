@@ -5,7 +5,7 @@ Created on Thu Apr 18 02:07:42 2019
 @author: Frank-NB
 """
 #import AlexAB darknet.py form yolo_cpp_dll.dll 
-import darknet
+import backbone.darknet as darknet
 import os
 import cv2
 
@@ -66,11 +66,11 @@ class FacialDectionCore:
 
     '''
     def initYOLO(self ,configPath = "./cfg/yolov3-tiny-gender-test.cfg"
-                      ,weightPath = "./cfg/yolov3-tiny-gender-newAnchors_50000.weights"
+                      ,weightPath = "./weights/yolov3-tiny-gender-newAnchors_50000.weights"
                       ,metaPath = "./cfg/obj_gender.data"):   
     '''  
     def initYOLO(self ,configPath = "./cfg/yolov3-tiny-face.cfg"
-                    ,weightPath = "./cfg/yolov3-tiny-face_55000.weights"
+                    ,weightPath = "./weights/yolov3-tiny-face_55000.weights"
                     ,metaPath = "./cfg/obj.data"):
                     
         if not os.path.exists(configPath):
@@ -118,6 +118,8 @@ class FacialDectionCore:
         faceImageInfoList = []        
         for detection in detections:
             if detection[2][2] >= self.minimalBBX[0] or detection[2][2] >= self.minimalBBX[1]:          
-                faceImageInfoList.append( FaceImageInfo(detection ,frame_resized) ) #所有偵測到的 "人臉bounding box" 的資訊       
+                faceImageInfoList.append( FaceImageInfo(detection ,frame_resized) ) #所有偵測到的 "人臉bounding box" 的資訊   
+                print(detection)    
 
+        print(f'image_size: ({frame_resized.shape[1]} x {frame_resized.shape[0]})')
         return frame_resized ,faceImageInfoList
