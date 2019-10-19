@@ -20,8 +20,6 @@ from PIL import Image, ImageDraw, ImageFont
 import facialDectionCore
 import facialRecognitionCore
 from facialRecognitionCore import Identity
-import ageGenderCore
-import emotionCore
 
 class CircularQueue:
     def __init__(self ,maxsize = 24):
@@ -197,13 +195,6 @@ class Recognition:
         # ------------------------------------設定人臉辨識演算法--------------------------
         self.facialRecognition = facialRecognitionCore.FacialRecognitionCore()  
 
-        #------------初始化mobilenet模型和資料-gender---------------------------        
-        #self.genderRecognition = test.GenderRecognitionCore()
-        self.genderAgeRec = ageGenderCore.GenderAgeRec()
-
-        #------------初始化模型和資料-emotion----------------------------------       
-        self.emotionRec = emotionCore.EmotionRec()
-
         #---------------OPENCV---------------------------------------------
         self.capDevice = 0 #'http://admin:123456@140.126.20.95/video.cgi'#0  # "./data/YouTube_Rewind_2016.mp4"
         self.deviceW = 1920
@@ -260,12 +251,6 @@ class Recognition:
         #t3.start()
         self.facialRecognition.initFacenet("./weights/20180402-114759.pb")# 初始化facenet模型和資料 20180402-114759.pb 20180408-102900.pb       
         self.facialRecognition.initFolderImage()
-
-        #------------初始gender_age-----------------------------------  
-        self.genderAgeRec.initModel()
-
-        #------------初始gender_age-----------------------------------  
-        self.emotionRec.initModel()
 
         #------------初始攝影機參數------------------------------------    
         self.__initCapDevice()
@@ -401,20 +386,6 @@ class Recognition:
         colorList = []
         for i in range(len(faceImgInfoList)):
             colorList.append((0, 255, 0))
-        '''       
-        #####
-        pre_t = time.time()
-        #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
-        colorList = self.genderAgeRec.display(faceImgInfoList ,faceImage_ori_list)
-        g_time = time.time() - pre_t       
-        #####      
-        
-        id
-
-        pre_t = time.time()
-        self.emotionRec.predict(faceImgInfoList ,faceImage_ori_list)
-        e_time = time.time() - pre_t    
-        '''
 
         if len(possiblePassInfoList) > 0:
             for index ,(possiblePassInfo, info ,result) in enumerate( zip(possiblePassInfoList, faceImgInfoList ,resultList) ):
@@ -479,24 +450,6 @@ class Recognition:
         
 
     #-----------------------------private func----------------------------------------------
-    '''
-        def __recGender_Age(self ,faceImgInfoList ,faceImage_ori_list):
-            print(f'start thread')
-            print(f'faceImgInfoList: {len(faceImgInfoList)}')
-            print(f'faceImgInfoList: {faceImage_ori_list}')
-            pre_t = time.time()
-            #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
-            self.colorList = self.genderAgeRec.display(faceImgInfoList ,faceImage_ori_list)
-            g_time = time.time() - pre_t    
-            print(f'Done g_a cost:{g_time}')
-
-
-        def __recID(self ,faceImages):
-            pre_t = time.time()
-            self.possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
-            id_time = time.time() - pre_t
-            print(f'Done g_a cost:{id_time}')
-    '''
     def __drawOnImg(self ,faceImgInfoList ,colorList):
         if colorList == []:
             colorList.append( (0, 255, 0) )
