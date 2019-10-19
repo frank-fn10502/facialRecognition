@@ -1,0 +1,9 @@
+__pycache__/
+outputData/
+*.yf
+Image/
+*.mp4
+GUI_Img/
+*.h5
+*.weights
+*.jpg

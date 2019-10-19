@@ -1,0 +1,13 @@
+tensorflow-gpu==1.13.1
+scipy
+scikit-learn
+opencv-python
+h5py
+matplotlib
+Pillow
+requests
+psutil
+pyqt5
+pyqt5-tools
+pandas
+keras

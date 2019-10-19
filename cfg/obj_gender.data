@@ -1,0 +1,5 @@
+classes= 2
+train  = data/train_gender.txt
+valid  = data/train_gender.txt
+names  = data/obj_gender.names
+backup = backup_gender_416x416/
