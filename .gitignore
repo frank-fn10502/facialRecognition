@@ -2,8 +2,7 @@ __pycache__/
 outputData/
 *.yf
 Image/
+weights/test/
+weights/unuse/
+other/temp/
 *.mp4
-GUI_Img/
-*.h5
-*.weights
-*.jpg

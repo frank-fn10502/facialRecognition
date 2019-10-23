@@ -394,14 +394,9 @@ class Recognition:
             cv2.imwrite('./temp/output.jpg', img_patch)    
             faceImage_ori_list.append(img_patch)
         
-        pre_t = time.time() 
-        possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
-        id_time = time.time() - pre_t
+
 
         colorList = []
-        for i in range(len(faceImgInfoList)):
-            colorList.append((0, 255, 0))
-        '''       
         #####
         pre_t = time.time()
         #colorList = self.genderRecognition.predectList(faceImgInfoList ,faceImages)
@@ -409,12 +404,17 @@ class Recognition:
         g_time = time.time() - pre_t       
         #####      
         
-        id
+        pre_t = time.time() 
+        possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
+        id_time = time.time() - pre_t
 
         pre_t = time.time()
         self.emotionRec.predict(faceImgInfoList ,faceImage_ori_list)
         e_time = time.time() - pre_t    
-        '''
+
+        if colorList == []:
+            for i in range(len(faceImgInfoList)):
+                colorList.append((0, 255, 0))
 
         if len(possiblePassInfoList) > 0:
             for index ,(possiblePassInfo, info ,result) in enumerate( zip(possiblePassInfoList, faceImgInfoList ,resultList) ):
@@ -461,7 +461,7 @@ class Recognition:
         print(f"reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | total time: {id_time + yolo_time:.4f}") 
         print("=" * 40 ,"\n")  
 
-        self.postAnswer()
+        #self.postAnswer()
         return self.__createJsonFile(faceImgInfoList)
  
     def stopAll(self):
@@ -475,7 +475,7 @@ class Recognition:
                 my_data['msg'] = 'n3'
                 break
         
-        r = requests.post(' http://localhost/IOT/V2/control/pubControl.php', data = my_data)
+        r = requests.post(' http://localhost/IOT/V2/control/pubControl.php' ,data = my_data)
         
 
     #-----------------------------private func----------------------------------------------
