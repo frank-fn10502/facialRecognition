@@ -9,50 +9,104 @@ import backbone.darknet as darknet
 import os
 import cv2
 
-class FaceImageInfo:
-    def __init__(self ,detection ,mainImg):                
+from utils import Dot ,Square  ,FacialFeature
+
+class YoloPred:
+    def __init__(self ,detection):
+        self.x, self.y, self.w , self.h = \
+        detection[2][0] ,detection[2][1] ,detection[2][2] ,detection[2][3]
+
         self.objName   = detection[0].decode("utf-8")
         self.confScore = detection[1]#round(detection[1] * 100, 2)
 
-        self.calBBXShape(detection ,mainImg)
-        '''
-        x, y, w, h = detection[2][0] ,detection[2][1] ,detection[2][2] ,detection[2][3]
-        self.yolo_x = x
-        self.yolo_y = y
-        self.w      = w
-        self.h      = h
+class BBX:
+    mainImgSize = None  #Square(w ,h) 
+    def __init__(self ,yoloPred ,qualifiedFace):
+        #------------------設定-----------------------------------------
+        #self.mainImgSize = None  #Square(w ,h)      
+        self.fullFaceOffest = 30
+        self.qualifiedFace = qualifiedFace  #確定臉沒有被邊緣切割掉
+        #------------------變數-----------------------------------------
+        self.yolo = yoloPred
+        self.centroid = None
+        self.xmin = None
+        self.ymin = None
+        self.xmax = None
+        self.ymax = None
 
-        self.xmin  = int(round(x - (w / 2)))    #convertBack
-        self.xmax  = int(round(x + (w / 2)))
-        self.ymin  = int(round(y - (h / 2)))
-        self.ymax  = int(round(y + (h / 2)))
-        self.centroid = (self.xmin + w / 2 ,self.ymin + h / 2) #計算重心(形心)
-        
-        self.__confirmInImage(mainImg)
-        '''
-      
-    def __confirmInImage(self ,mainImg):
-        height, width, channels = mainImg.shape
+        self.__calBBXShape() 
+        self.__confirmInImage()
+
+    def __calBBXShape(self):
+        self.xmin  = int(round(self.yolo.x - (self.yolo.w / 2)))    #convertBack
+        self.xmax  = int(round(self.yolo.x + (self.yolo.w / 2)))
+        self.ymin  = int(round(self.yolo.y - (self.yolo.h / 2)))
+        self.ymax  = int(round(self.yolo.y + (self.yolo.h / 2)))
+        self.centroid = Dot(self.yolo.x ,self.yolo.y) #計算重心(形心)       
+
+    def __confirmInImage(self):
+        pre_dot_list = self.xmin ,self.ymin ,self.xmax ,self.ymax
+
         self.xmin = self.xmin if self.xmin > 0       else 0
         self.ymin = self.ymin if self.ymin > 0       else 0
-        self.xmax = self.xmax if self.xmax < width  else width
-        self.ymax = self.ymax if self.ymax < height else height
+        self.xmax = self.xmax if self.xmax < BBX.mainImgSize.w else BBX.mainImgSize.w
+        self.ymax = self.ymax if self.ymax < BBX.mainImgSize.h else BBX.mainImgSize.h
+        
+        pos_dot_list = self.xmin ,self.ymin ,self.xmax ,self.ymax
 
-    def calBBXShape(self ,detection ,mainImg):
+        for now ,pre in zip(pos_dot_list ,pre_dot_list):
+            if abs(now - pre) > self.fullFaceOffest:
+                self.qualifiedFace = False
+
+    def reCal(self ,yoloPred ,yolo_w ,yolo_h):
+        self.yolo = yoloPred
+        self.__calBBXShape() 
+        self.__confirmInImage()
+
+
+'''
+class FaceImageInfo:
+    def __init__(self ,yoloPred ,qualifiedFace):                
+        #self.objName   = detection[0].decode("utf-8")
+        #self.confScore = detection[1]#round(detection[1] * 100, 2)
+        self.mainImgSize = None  #Square(w ,h)      
+        self.fullFaceOffest = 30
+
+        self.yolo = yoloPred
+        self.qualifiedFace = qualifiedFace  #確定臉沒有被邊緣切割掉
+        
+
+        self.__calBBXShape()
+        self.__calBBXShape()
+      
+    def __confirmInImage(self):
+        #height, width, channels = mainImg.shape
+        pre_dot_list = self.xmin ,self.ymin ,self.xmax ,self.ymax
+
+        self.xmin = self.xmin if self.xmin > 0       else 0
+        self.ymin = self.ymin if self.ymin > 0       else 0
+        self.xmax = self.xmax if self.xmax < self.mainImgSize.w else self.mainImgSize.w
+        self.ymax = self.ymax if self.ymax < self.mainImgSize.h else self.mainImgSize.h
+        pos_dot_list = self.xmin ,self.ymin ,self.xmax ,self.ymax
+
+        for now ,pre in zip(pos_dot_list ,pre_dot_list):
+            if abs(now - pre) > self.fullFaceOffest:
+                self.qualifiedFace = False
+
+    def __calBBXShape(self):
+        
         x, y, w, h = detection[2][0] ,detection[2][1] ,detection[2][2] ,detection[2][3]
         self.yolo_x = x
         self.yolo_y = y
         self.w      = w
         self.h      = h
-
-        self.xmin  = int(round(x - (w / 2)))    #convertBack
-        self.xmax  = int(round(x + (w / 2)))
-        self.ymin  = int(round(y - (h / 2)))
-        self.ymax  = int(round(y + (h / 2)))
-        self.centroid = (self.xmin + w / 2 ,self.ymin + h / 2) #計算重心(形心)
         
-        self.__confirmInImage(mainImg)
-
+        self.xmin  = int(round(self.yolo.x - (self.yolo.w / 2)))    #convertBack
+        self.xmax  = int(round(self.yolo.x + (self.yolo.w / 2)))
+        self.ymin  = int(round(self.yolo.y - (self.yolo.h / 2)))
+        self.ymax  = int(round(self.yolo.y + (self.yolo.h / 2)))
+        self.centroid = Dot(self.yolo.x ,self.yolo.y) #計算重心(形心)
+'''
     
 class FacialDectionCore:
     def __init__(self):        
@@ -61,8 +115,11 @@ class FacialDectionCore:
         self.metaMain = None
         self.altNames = None
         self.darknet_image = None
+
+        #----------------屬性-------------------------------------------
+        self.mainImgSize = None #(W ,H)
         self.yoloTresh = 0.7
-        self.minimalBBX = (20, 20)
+        self.minimalBBX = Square(20, 20)
 
     '''
     def initYOLO(self ,configPath = "./cfg/yolov3-tiny-gender-test.cfg"
@@ -70,8 +127,8 @@ class FacialDectionCore:
                       ,metaPath = "./cfg/obj_gender.data"):   
     '''  
     def initYOLO(self ,configPath = "./cfg/yolov3-tiny-face.cfg"
-                    ,weightPath = "./weights/yolov3-tiny-face_55000.weights"
-                    ,metaPath = "./cfg/obj.data"):
+                      ,weightPath = "./weights/yolov3-tiny-face_55000.weights"
+                      ,metaPath = "./cfg/obj.data"):
                     
         if not os.path.exists(configPath):
             raise ValueError("Invalid config path `"    + os.path.abspath(configPath)+"`")
@@ -105,21 +162,27 @@ class FacialDectionCore:
         self.darknet_image = darknet.make_image(darknet.network_width(self.netMain) 
                                                ,darknet.network_height(self.netMain),3)   #Create an image we reuse for each detect   
 
+        self.mainImgSize = Square(darknet.network_width(self.netMain) ,darknet.network_height(self.netMain))
+        #FaceImageInfo.mainImgSize = self.mainImgSize
+        BBX.mainImgSize = self.mainImgSize
+
     def captureData(self ,frame_read):
-        frame_rgb     = cv2.cvtColor(frame_read, cv2.COLOR_BGR2RGB)
-        frame_resized = cv2.resize(frame_rgb,
-                                  (darknet.network_width(self.netMain),
-                                   darknet.network_height(self.netMain)),
+        frame_resized = cv2.resize(frame_read,
+                                   self.mainImgSize.getTuple(),
                                    interpolation=cv2.INTER_LINEAR)
 
         darknet.copy_image_from_bytes(self.darknet_image,frame_resized.tobytes())    
         detections = darknet.detect_image(self.netMain, self.metaMain, self.darknet_image, thresh=self.yoloTresh)
         
-        faceImageInfoList = []        
+        facialFeatureList = []        
         for detection in detections:
-            if detection[2][2] >= self.minimalBBX[0] or detection[2][2] >= self.minimalBBX[1]:          
-                faceImageInfoList.append( FaceImageInfo(detection ,frame_resized) ) #所有偵測到的 "人臉bounding box" 的資訊   
-                print(detection)    
+            yolo = YoloPred(detection)
+            qualifiedFace =  yolo.w >= self.minimalBBX.w or yolo.h >= self.minimalBBX.h   
+            
+            ff = FacialFeature()
+            ff.bbx = BBX(yolo ,qualifiedFace)
+            facialFeatureList.append(ff) #所有偵測到的 "人臉bounding box" 的資訊   
+            #print(detection)    
 
-        print(f'image_size: ({frame_resized.shape[1]} x {frame_resized.shape[0]})')
-        return frame_resized ,faceImageInfoList
+        #print(f'image_size: ({frame_resized.shape[1]} x {frame_resized.shape[0]})')
+        return frame_resized ,facialFeatureList

@@ -2,7 +2,8 @@ __pycache__/
 outputData/
 *.yf
 Image/
-weights/test/
-weights/unuse/
-other/temp/
+cfg/
+weights/
+other/
+temp/
 *.mp4

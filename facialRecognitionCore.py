@@ -14,8 +14,8 @@ import tensorflow as tf
 import numpy as np
 from scipy import misc
 
-class PassingInfo:
-    def __init__(self ,name ,passRate = 0 ,passAvgDist = 0):
+class Identity:
+    def __init__(self ,name = 'noMan' ,passRate = 0 ,passAvgDist = 0):
         self.name = name
         self.passRate = passRate
         self.passAvgDist  = passAvgDist
@@ -73,7 +73,7 @@ class PassingInfo:
         print(f"recognitionResult: {self.__str__()} \n {'-'*30}")                 
 
 
-class Identity:
+class RegisteredIdentity:
     def __init__(self ,name ,embList =[]):
         self.name = name
         self.embList = embList  
@@ -87,6 +87,7 @@ class Identity:
 
         return distList
 
+
 class FacialRecognitionCore:
     def __init__(self):
         #------------變數---------------------------------------------
@@ -96,7 +97,7 @@ class FacialRecognitionCore:
         self.phase_train_placeholder = None
         self.fileRootPath  = "./Image"#圖片儲存位置                   
         self.image_size = 160
-        self.identityList = []        #IdentityList()  
+        self.regIdentityList = []        #IdentityList()  
         self.distTresh = 0.85
         
         config = tf.ConfigProto()
@@ -122,7 +123,7 @@ class FacialRecognitionCore:
                 continue
 
             embFileName = "{0}/{1}/{2}".format(self.fileRootPath ,folder ,'image.yf')
-            identity = Identity(folder ,[])   
+            regIdentity = RegisteredIdentity(folder ,[])   
             try:                                
                 fileRead = open(embFileName, 'r', encoding='UTF-8')                                                                         
                 emb = []                     
@@ -130,15 +131,15 @@ class FacialRecognitionCore:
                     itemList = line.split()
                     if len(itemList) == 1:                
                         if len(emb) > 0:
-                            identity.embList.append(emb)
+                            regIdentity.embList.append(emb)
                             emb = []
                     else:                          
                         emb.extend( [np.float32(item.strip('[]')) for item in itemList if(item != '[' and item != ']' )] )
                         
-                identity.embList.append(emb)
-                identity.embList = np.array(identity.embList)
+                regIdentity.embList.append(emb)
+                regIdentity.embList = np.array(regIdentity.embList)
                 fileRead.close() 
-                print("{0}/{1}/{2}  完成讀檔!!!(num:{3:2d})".format(self.fileRootPath ,folder ,'image.yf' ,len(identity.embList) ))
+                print("{0}/{1}/{2}  完成讀檔!!!(num:{3:2d})".format(self.fileRootPath ,folder ,'image.yf' ,len(regIdentity.embList) ))
             
             except FileNotFoundError:
                 print("{0}  並不存在!!! 重新產生檔案...".format(embFileName))    
@@ -151,15 +152,15 @@ class FacialRecognitionCore:
                         img = cv2.imdecode(np.fromfile("{0}/{1}".format(mypath ,imageFile) ,dtype=np.uint8),cv2.IMREAD_UNCHANGED)
                         imgList.append(img)
    
-                identity.embList = self.faceCaculate(imgList)        #這一個人的10張照片的emb
+                regIdentity.embList = self.faceCaculate(imgList)        #這一個人的10張照片的emb
                 
-                for embName ,emb in zip(range(10) ,identity.embList):
+                for embName ,emb in zip(range(10) ,regIdentity.embList):
                     fileWrite.write("{0}\n{1}\n".format(embName ,emb))
                     
                 fileWrite.close()           
-                print("{0}/{1}/{2}  完成寫檔!!!(num:{3:2d})".format(self.fileRootPath ,folder ,'image.yf' ,len(identity.embList) ))
+                print("{0}/{1}/{2}  完成寫檔!!!(num:{3:2d})".format(self.fileRootPath ,folder ,'image.yf' ,len(regIdentity.embList) ))
                 
-            self.identityList.append(identity)
+            self.regIdentityList.append(regIdentity)
                
     def faceCaculate(self ,faceImageList):#計算人臉的特徵
         preProcessingFaceImageList  = []
@@ -175,21 +176,24 @@ class FacialRecognitionCore:
                                                               ,self.phase_train_placeholder:False })     
         return emb
                    
-    def compareFace(self ,faceImageList):#辨識圖片
-        possiblePassInfoList = []
-        if len(faceImageList) > 0 and len(self.identityList) > 0:
-            
-            detectEmbList = self.faceCaculate(faceImageList)            
-            for detectEmb in detectEmbList:   
-
-                possiblePassInfo = PassingInfo('noMan')
-                for identity in self.identityList:
-                    distList = identity.calDistInfo(detectEmb ,self.distTresh)  
+    def compareFace(self ,facialFeatureList ,faceImageList):#辨識圖片
+        q_facialFeatureList = []
+        for f in facialFeatureList:
+            if f.bbx.qualifiedFace:
+                q_facialFeatureList.append(f)
+        #identityList = []
+        if len(faceImageList) > 0 and len(self.regIdentityList) > 0:         
+            embList = self.faceCaculate(faceImageList)            
+            for f ,emb in zip(q_facialFeatureList ,embList):
+                identity = Identity()
+                for regIdentity in self.regIdentityList:
+                    distList = regIdentity.calDistInfo(emb ,self.distTresh)  
                     for dist in distList:
-                        possiblePassInfo.addInfo( (identity.name ,dist) )
+                        identity.addInfo( (regIdentity.name ,dist) )
                 
-                possiblePassInfo.calResult()    #計算結果
-                possiblePassInfoList.append(possiblePassInfo)  
+                identity.calResult()    #計算結果
+                #identityList.append(identity)  
+                f.identity = identity 
 
             #print('-'*30)         
-        return possiblePassInfoList
+        #return identityList

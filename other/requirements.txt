@@ -1,4 +1,4 @@
-tensorflow-gpu==1.13.1
+tensorflow-gpu==1.13.0
 scipy
 scikit-learn
 opencv-python
@@ -8,6 +8,6 @@ Pillow
 requests
 psutil
 pyqt5
-pyqt5-tools
 pandas
+numpy
 keras
