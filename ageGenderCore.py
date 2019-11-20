@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 
 from keras.models import load_model
-from keras.applications.mobilenetv2 import preprocess_input
+#from keras.applications.mobilenetv2 import preprocess_input
+from keras.applications.inception_v3 import preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
 
 from utils import FacialFeature
@@ -28,6 +29,7 @@ class GenderAgeRec():
         
 
     def initModel(self):
+        #self.model = load_model('weights/gender-age-Inceptionv3-20__11_20.h5' ,compile=False)
         self.model = load_model('weights/gender-age-mobilenetv1_frank_ver3_3_50_v1.h5' ,compile=False)
         #gender-age-mobilenetv2_frank_ver3_5 
         #gender-age-mobilenetv1_frank_ver3_3_50_v1\
@@ -54,7 +56,7 @@ class GenderAgeRec():
 
             q_facialFeatureList = []
             for f in facialFeatureList:
-                if f.bbx.qualifiedFace:
+                if f.qualifiedFace:
                     q_facialFeatureList.append(f)
 
             for f ,(age ,gender) in zip(q_facialFeatureList ,resultList):

@@ -19,7 +19,9 @@ class Square:
 
 
 class FacialFeature:
-    def __init__(self):    
+    def __init__(self ,qualifiedFace = True):    
+        self.qualifiedFace = qualifiedFace
+
         self.bbx = None     #####
         self.identity = None
         self.gender = None  #####
@@ -28,16 +30,6 @@ class FacialFeature:
 
     def __str__(self):
         return f"{str(self.identity)} "
-    '''
-    def addYOLOPred(self ,yoloPred ,qualifiedFace):
-        self.bbx = BBX(yoloPred ,qualifiedFace)
-
-    def addGender(self ,gender):
-        self.gender = gender
-
-    def addAge(self ,age):
-        self.age = age    
-    '''
 
 
 class CircularQueue:
@@ -64,6 +56,19 @@ class CircularQueue:
 
     def isFull(self):
         return self.count == len(self.queue)
+
+    def getList(self):
+        l = []
+        counter = 0
+        i = self.front
+        while counter < self.len():
+            l.append(self.queue[i])
+
+            i = (i + 1) % self.size() 
+            counter += 1
+
+        return l
+
 
 class OutputHandler:
     def __init__(self):

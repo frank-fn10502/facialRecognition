@@ -40,14 +40,12 @@ class AccData:  #Accumulated recognized facial data
         #-------------------變數---------------------------- 
         self.lastFacialFeature = None
 
+        self.qualifiedFace = True
         self.bbx      = facialFeature.bbx
         self.name     = facialFeature.identity.name if facialFeature.identity is not None else None
         self.gender   = facialFeature.gender
         self.age      = facialFeature.age     
         self.emotion  = facialFeature.emotion #####
-        #self.lastFaceImageInfo = None
-        #self.mostPossibleName  = ''
-        #self.mostPossibleObjName  = ''
               
         self.addInfo(facialFeature)
 
@@ -77,8 +75,6 @@ class AccData:  #Accumulated recognized facial data
         
         self.dataList.push(facialFeature)
         self.__adjustBBX(facialFeature)
-        #if self.num_counter < self.dataList.maxSize:
-        #    self.num_counter += 1
         
     def isThisAccData(self ,faceImgInfo):
         return self.__calIOU(faceImgInfo)
@@ -94,7 +90,7 @@ class AccData:  #Accumulated recognized facial data
 
         w /= count
         h /= count
-        self.bbx.reCal(facialFeature.bbx.yolo ,w ,h)     
+        self.bbx.reCal(facialFeature.bbx.yolo ,math.floor(w) ,math.floor(h))     
 
     def isStillAlive(self):
         self.counter -= 1
@@ -105,29 +101,25 @@ class AccData:  #Accumulated recognized facial data
         genderList = [0 ,0 ,0] #none ,male ,female
         ageAvg = 0
 
-        qualifiedFace = True
-        i = self.dataList.front
-        counter = 0
-        while counter < self.dataList.len():
-            f = self.dataList.queue[i]
-            if not f.bbx.qualifiedFace:
-                qualifiedFace = False
+        self.qualifiedFace = True
+        for f in self.dataList.getList():
+            if not f.qualifiedFace:
+                self.qualifiedFace = False
                 break
 
-            genderList[f.gender.genderIndex + 1] += 1
+     
+        if self.qualifiedFace:
+            for f in self.dataList.getList():
+                genderList[f.gender.genderIndex + 1] += 1
 
-            if f.identity.name is not None:
-                if f.identity.name in nameDict: 
-                    nameDict[f.identity.name] += 1
-                else:
-                    nameDict[f.identity.name] = 1
+                if f.identity.name is not None:
+                    if f.identity.name in nameDict: 
+                        nameDict[f.identity.name] += 1
+                    else:
+                        nameDict[f.identity.name] = 1
 
-            ageAvg += f.age
+                ageAvg += f.age
 
-            i = (i + 1) % self.dataList.size() 
-            counter += 1
-
-        if nameDict:
             self.name = 'noMan'
             currentMax = 0
             for accName ,count in nameDict.items():
@@ -135,73 +127,10 @@ class AccData:  #Accumulated recognized facial data
                     currentMax = count
                     self.name = accName 
 
-        if qualifiedFace:
-            self.gender.genderIndex   = np.argmax(genderList,axis=0) - 1
-            self.age      = ageAvg / self.dataList.len()       
+            self.gender = ageGenderCore.Gender(np.argmax(genderList,axis=0) - 1)
+            self.age    = ageAvg / self.dataList.len()   
 
-        print(f"name:{nameDict}  ,gender:{genderList}  ,age:{self.age :.2f} ,num:{self.dataList.len()}")  
-        '''
-        tempDict_name = {}
-        gender_temp_list = [0 ,0] #male ,female
-        age_temp_avg = 0
-        #e_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
-        #e_list = [0 ,0 ,0 ,0 ,0 ,0 ,0]
-        
-
-        i = self.dataList.front
-        counter = 0
-        defect  = 0
-        while counter < self.dataList.len():
-            list_data = self.dataList.queue[i][1].objName.split(',')
-            if len(list_data) > 1:
-                gender ,age ,emotion = list_data
-                gender = gender.strip()
-                age = int(age)
-                if gender == 'male':
-                    gender_temp_list[0] += 1
-                else:
-                    gender_temp_list[1] += 1
-
-                for index ,em in enumerate(e_labels) :
-                    if em == emotion:
-                        e_list[index] += 1
-
-                age_temp_avg += age
-            else:
-                defect += 1
-            #with self.dataList.queue[i] as (name ,info):
-            if tempDict_name. __contains__(self.dataList.queue[i][0]): 
-                tempDict_name[self.dataList.queue[i][0]] += 1
-            else:
-                tempDict_name[self.dataList.queue[i][0]] = 1
-            i = (i + 1) % self.dataList.size() 
-            counter += 1
-
-        emotion = e_labels[np.argmax(e_list,axis=0)] 
-        if counter - defect != 0:
-            age_temp_avg /= (counter - defect)
-        else:
-            age_temp_avg = 18
-
-        if gender_temp_list[0] > gender_temp_list[1]:
-            self.mostPossibleObjName = f"male ,{round(float(age_temp_avg))} ,{ emotion }"
-        elif gender_temp_list[1] > gender_temp_list[0]: 
-            self.mostPossibleObjName = f"female ,{round(float(age_temp_avg))} ,{ emotion }"
-        else:
-            self.mostPossibleObjName = f"eq ,{round(float(age_temp_avg))} ,{ emotion }"
-
-        currentMax = 0 
-        self.mostPossibleName = 'noMan'   
-        for accName ,count in tempDict_name.items():
-            if count >= currentMax and count >= math.ceil(self.treshDisplay * self.num_counter):
-                currentMax = count
-                self.mostPossibleName = accName   
-
-        print(f"name:{tempDict_name}  ,gender:{gender_temp_list}  ,age:{age_temp_avg :.2f}  ,emotion:{emotion}  ,num:{self.num_counter}")
-        '''
-
-
-
+            print(f"name:{nameDict}  ,gender:{genderList}  ,age:{self.age :.2f} ,num:{self.dataList.len()}")  
 
 
 class Recognition:
@@ -211,8 +140,7 @@ class Recognition:
         # ------------------------------------設定人臉辨識演算法--------------------------
         self.facialRecognition = facialRecognitionCore.FacialRecognitionCore()  
 
-        #------------初始化mobilenet模型和資料-gender---------------------------        
-        #self.genderRecognition = test.GenderRecognitionCore()
+        #------------初始化mobilenet模型和資料-gender---------------------------
         self.genderAgeRec = ageGenderCore.GenderAgeRec()
 
         #------------初始化模型和資料-emotion----------------------------------       
@@ -256,9 +184,6 @@ class Recognition:
         self.outputHandler = OutputHandler()
 
     def initAllData(self):
-        #warnings.filterwarnings("ignore")
-        #warnings.simplefilter(action='ignore', category=FutureWarning)
-        #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         #----------------讀取cfg資料----------------------------------
         if not self.__initCfgData():
             return False
@@ -286,7 +211,7 @@ class Recognition:
         print(f'perpare all cost:{time.time() - pre_t:.3f}')
         return True
 
-    def startCap(self):
+    def startCap(self):#server的start,stop需要同時加進來  #server的end 會告訴我們server掛了
         self.stopThread = False
         threading.Thread(target=self.__getImge).start()
         self.outputHandler.start()
@@ -374,24 +299,28 @@ class Recognition:
 
     def recognized(self  ,displayInfo = True):
         pre_t = time.time()
-        #facialFeatureList ,resultList = self.__preProcess()
         self.__preProcess()
-        yolo_time = time.time() - pre_t  
+        yolo_time = time.time() - pre_t
 
         faceImages = []
         faceImage_ori_list = []
         for f in self.facialFeatureList:
-            if f.bbx.qualifiedFace:
+            if f.qualifiedFace:
                 bbx = f.bbx
                 # 裁剪座標為[y0:y1 ,x0:x1]
                 croppedImage = self.resizeImg[bbx.ymin:bbx.ymax ,bbx.xmin:bbx.xmax]
                 faceImages.append(croppedImage)
                 faceImage_ori_list.append(self.__getFacialImgWithPatch(bbx))   
-
-        temp = np.asarray(faceImages).shape
-        print(np.asarray(faceImages).shape)   
-        if  temp[0] == 0:
+        '''
+        temp1 = np.asarray(faceImages[0]).shape
+        temp2 = np.asarray(faceImage_ori_list[0]).shape
+        if temp1[0] != 0:
+            print(f"faceImages: {temp1},比值(h/w):{temp1[1] / (temp1[2] * 1.0) :.3f}\n" + \
+                  f"faceImage_ori_list:{temp2} ,比值(h/w):{temp1[1] * self.c_h / (temp1[2] * self.c_w) :.3f}")   
+               
+        else:
             print(f"faceImages{faceImages} length:{len(faceImages) }")
+        '''
 
         #####
         pre_t = time.time()
@@ -411,83 +340,14 @@ class Recognition:
         e_time = time.time() - pre_t    
         '''
 
-        '''
-        if colorList == []:
-            for i in range(len(facialFeatureList)):
-                colorList.append((0, 255, 0))
-        '''
         print(f"self.facialFeatureList :{len(self.facialFeatureList)}")
         self.resultList = self.__getResultList(self.facialFeatureList) #從累計的list中取得結果
+
         if len(self.resultList) > 0:
             for index ,result in enumerate( self.resultList):
                 print(f"{index}. " ,end='')
                 result.calResult()
-        '''
-        #if len(possiblePassInfoList) > 0:
-            #for index ,(possiblePassInfo, info ,result) in enumerate( zip(possiblePassInfoList, facialFeatureList ,resultList) ):
-                
-                if result is None:
-                    result = AccData(info ,possiblePassInfo.name)
-                    self.accDataList.append(result)
-                else:
-                    result.addInfo(info ,possiblePassInfo.name)
-                
-                #result.addInfo(info ,possiblePassInfo.name)
 
-                #print(f"{index}. " ,end='')
-                result.calResult()
-                
-                mostPossibleObjName = result.mostPossibleObjName.strip('()')
-
-                if displayInfo:
-                    self.displayTextList.append(["{0} [{1}][{2}][{3}]".format(result.mostPossibleName 
-                                                                    ,str(round(possiblePassInfo.passAvgDist, 4)) 
-                                                                     if possiblePassInfo.name == result.mostPossibleName and possiblePassInfo.name != 'noMan' else 
-                                                                     'unKnow' 
-                                                                    ,round(info.confScore * 100, 2)
-                                                                    ,mostPossibleObjName if mostPossibleObjName.split(' ,')[0] != 'eq' else info.objName)
-                                                                    ,(info.xmin, info.ymin)
-                                                                    ,20])
-
-                
-                
-                if result is not None:
-                    print(f"{index}. " ,end='')
-                    result.calResult()
-                    mostPossibleObjName = result.mostPossibleObjName.strip('()')
-                    #print(mostPossibleObjName)
-                    #print(mostPossibleObjName.split(' ,')[0])
-
-                    #if mostPossibleObjName.split(' ,')[0] != 'eq':
-                    #    colorList[index] = (0, 255, 0) if mostPossibleObjName.split(' ,')[0]  == 'male' else (255, 0, 0)
-
-                    if displayInfo:
-                        self.displayTextList.append(["{0} [{1}][{2}][{3}]".format(result.mostPossibleName 
-                                                                        ,str(round(possiblePassInfo.passAvgDist, 4)) 
-                                                                         if possiblePassInfo.name == result.mostPossibleName and possiblePassInfo.name != 'noMan' else 
-                                                                         'unKnow' 
-                                                                        ,round(info.confScore * 100, 2)
-                                                                        ,mostPossibleObjName if mostPossibleObjName.split(' ,')[0] != 'eq' else info.objName)
-                                                                        ,(info.xmin, info.ymin)
-                                                                        ,20])
-
-                    result.addInfo(info ,possiblePassInfo.name)
-                else:
-                    self.accDataList.append(AccData(info ,possiblePassInfo.name))
-                    if displayInfo:
-                        self.displayTextList.append(["{0} [{1}][{2}][{3}]".format(possiblePassInfo.name 
-                                                                        ,str(round(possiblePassInfo.passAvgDist, 4))  
-                                                                        ,round(info.confScore * 100, 2)
-                                                                        ,info.objName) 
-                                                                        ,(info.xmin, info.ymin)
-                                                                        ,20])  
-        else:
-            if displayInfo:
-                for info in facialFeatureList:
-                    self.displayTextList.append(["{0} [{1}][{2}][{3}]".format("noMan", "unKnow", round(info.confScore * 100, 2),info.objName) 
-                                        ,(info.xmin, info.ymin)
-                                        ,20])   
-        '''
         if displayInfo:   
             self.__drawOnImg()
 
@@ -513,25 +373,6 @@ class Recognition:
         
 
     #-----------------------------private func----------------------------------------------
-    '''
-        def __recGender_Age(self ,facialFeatureList ,faceImage_ori_list):
-            print(f'start thread')
-            print(f'facialFeatureList: {len(facialFeatureList)}')
-            print(f'facialFeatureList: {faceImage_ori_list}')
-            pre_t = time.time()
-            #colorList = self.genderRecognition.predectList(facialFeatureList ,faceImages)
-            self.colorList = self.genderAgeRec.display(facialFeatureList ,faceImage_ori_list)
-            g_time = time.time() - pre_t    
-            print(f'Done g_a cost:{g_time}')
-
-
-        def __recID(self ,faceImages):
-            pre_t = time.time()
-            self.possiblePassInfoList = self.facialRecognition.compareFace(faceImages)  # 讓"所有裁切下來的人臉"和"資料庫的人臉"做比對 (回傳 passInfo) 
-            id_time = time.time() - pre_t
-            print(f'Done g_a cost:{id_time}')
-    '''
-
     def __getFacialImgWithPatch(self ,bbx):
         pt1 = (int(bbx.xmin * self.c_w), int(bbx.ymin * self.c_h))
         pt2 = (int(bbx.xmax * self.c_w), int(bbx.ymax * self.c_h))
@@ -549,8 +390,6 @@ class Recognition:
         return img_patch      
 
     def __drawOnImg(self):
-        #if colorList == []:
-        #    colorList.append( (0, 255, 0) )
         # ---------------------劃出文字---------------------------------------------------
         self.__displayText()
 
@@ -647,6 +486,7 @@ class Recognition:
                 self.ret ,self.frame = self.cap.read()  #初始化
                 self.stopThread = False   
         else:
+                #cline的get_img可以取代
                 self.cap = None
                 self.stopThread = False
                 TCP_IP = "192.168.100.143"
@@ -657,6 +497,8 @@ class Recognition:
                 data = np.fromstring(stringData, dtype='uint8')
                 decimg=cv2.imdecode(data,1)
                 sp = decimg.shape
+
+                #以下cfg
                 self.capHeight = int(sp[0])
                 self.capWidth  = int(sp[1])
                 self.regAreaW = int(self.capWidth/4)  if self.regAreaW == -1 else int((self.capWidth  - self.regAreaW)/2)
@@ -712,8 +554,7 @@ class Recognition:
             hasAcc = False
             for accData in self.accDataList:
                 isPass ,IOU = accData.isThisAccData(f)
-                if isPass:
-                    #accData.adjustBBX(f ,self.resizeImg)          
+                if isPass:        
                     accData.addInfo(f)#####
                     resultList.append(accData)
                     hasAcc = True
@@ -721,7 +562,6 @@ class Recognition:
             
             print(f"{index}. iou: {IOU if hasAcc else 'noMatch'}")
             if not hasAcc:
-                #resultList.append(None)
                 result = AccData(f)
                 self.accDataList.append(result)
                 resultList.append(result)#####
@@ -742,10 +582,6 @@ class Recognition:
         self.currentImage = cv2.cvtColor(self.currentImage, cv2.COLOR_BGR2RGB)
 
         self.resizeImg ,self.facialFeatureList = self.facialDetection.captureData(self.currentImage)  #currentImage的畫面 ,從yolo網路中取得bbx的參數(存成list)
-        #self.resultList = self.__getResultList(self.facialFeatureList)                                     #從累計的list中取得結果
-        #resultList = self.__getResultList(facialFeatureList)                                     #從累計的list中取得結果
-
-        #return facialFeatureList ,resultList
 
     def __displayText(self):
         fontSize = 20
@@ -755,28 +591,14 @@ class Recognition:
         font     = ImageFont.truetype('simsun.ttc', fontSize)
 
         for result in self.resultList:     
-            if result.bbx.qualifiedFace:
+            if result.qualifiedFace:
                 draw.text((result.bbx.xmin * self.c_w ,result.bbx.ymin * self.c_h - 20), str(result), font=font, fill=color)
               
         self.currentImage = np.asarray(imgPIL)
-
-        '''
-        for textInfo in displayTextList:
-            if fontSize != textInfo[2]:
-                fontSize = textInfo[2]
-                font = ImageFont.truetype('simsun.ttc', fontSize)
-            draw.text((textInfo[1][0] * self.c_w ,textInfo[1][1] * self.c_h  - 20), textInfo[0], font=font, fill=color)  #(pos ,str ,font ,color)    
-        '''
 
     def __drawBBX(self):
         for result in self.resultList:
             pt1 = (int(result.bbx.xmin * self.c_w), int(result.bbx.ymin * self.c_h))
             pt2 = (int(result.bbx.xmax * self.c_w), int(result.bbx.ymax * self.c_h))
-            color = result.gender.getGenderColor() if result.bbx.qualifiedFace else ageGenderCore.Gender.indexToColor[-1]
+            color = result.gender.getGenderColor() if result.qualifiedFace else ageGenderCore.Gender.indexToColor[-1]
             cv2.rectangle(self.currentImage, pt1, pt2, color, 1)
-        '''
-        for info ,color in zip(facialFeatureList ,colorList):
-            pt1 = (int(info.xmin * self.c_w), int(info.ymin * self.c_h))
-            pt2 = (int(info.xmax * self.c_w), int(info.ymax * self.c_h))
-            cv2.rectangle(self.currentImage, pt1, pt2, color,1)
-        '''

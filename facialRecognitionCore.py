@@ -179,7 +179,7 @@ class FacialRecognitionCore:
     def compareFace(self ,facialFeatureList ,faceImageList):#辨識圖片
         q_facialFeatureList = []
         for f in facialFeatureList:
-            if f.bbx.qualifiedFace:
+            if f.qualifiedFace:
                 q_facialFeatureList.append(f)
         #identityList = []
         if len(faceImageList) > 0 and len(self.regIdentityList) > 0:         
