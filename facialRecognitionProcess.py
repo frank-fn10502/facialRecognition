@@ -15,16 +15,21 @@ import requests
 
 import backbone.darknet as darknet
 
+
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt#####
+
 
 import facialDectionCore
 import facialRecognitionCore
 from facialRecognitionCore import Identity
 import ageGenderCore
 import emotionCore
-from utils import CircularQueue ,OutputHandler ,Dot ,Square  ,FacialFeature 
+from utils import CircularQueue ,OutputHandler ,Dot ,Square  ,FacialFeature ,RecType
 from client import ClientCam
+from server import ServerCam
+
+
 
 
 class AccData:  #Accumulated recognized facial data
@@ -136,7 +141,7 @@ class AccData:  #Accumulated recognized facial data
 
 
 class Recognition:
-    def __init__(self):        
+    def __init__(self ,role = RecType.LOCALHOST):        
         # --------------------------設定人臉偵測演算法------------------------------------
         self.facialDetection = facialDectionCore.FacialDectionCore()  # 讀取並設定YOLO
         # ------------------------------------設定人臉辨識演算法--------------------------
@@ -157,8 +162,10 @@ class Recognition:
         
         #---------------server-client---------------------------------------------
         self.clientCam = None
+        self.serverCam = None
 
         #--------------參數----------------------------------------------
+        self.role = role
         self.writeJson    = False#True
         self.maxFaceCount = 10
         self.saveInterval = 0.5
@@ -301,16 +308,16 @@ class Recognition:
         return self.faceitem == 1 and self.needName ,regFaceImg
 
     def recognized(self  ,displayInfo = True):
-        if self.capDevice == '-1':
+        if self.role == RecType.CLIENT:
             self.currentImage = cv2.flip(self.frame ,1)  #左右翻轉
             self.currentImage = cv2.cvtColor(self.currentImage, cv2.COLOR_BGR2RGB)
             self.clientCam.send_img(self.currentImage)
             self.currentImage = cline.get_img()
 
             if displayInfo:   
-                self.__drawOnImg()
-            
-        else:
+                self.__drawOnImg()           
+
+        elif self.role == RecType.SERVER or self.role == RecType.LOCALHOST:
             pre_t = time.time()
             self.__preProcess()
             yolo_time = time.time() - pre_t
@@ -369,6 +376,9 @@ class Recognition:
             print("=" * 40 ,"\n")  
 
             #self.postAnswer()
+            if self.role == RecType.SERVER:
+                self.serverCam.send_img()
+
             return self.__createJsonFile()
  
     def stopAll(self):
@@ -439,8 +449,8 @@ class Recognition:
         config = cfg.ConfigParser()
         try:
             config.read(self.cfgFile ,encoding='utf-8')
-            self.capDevice = config['Default']['device'] #???
-            self.capDevice = int(self.capDevice) if self.capDevice.isdigit() else self.capDevice
+            self.capDevice = eval(config['Default']['device'])
+            #self.capDevice = int(self.capDevice) if self.capDevice.isdigit() else self.capDevice
             self.deviceW = config.getint('Default' ,'devicew')
             self.deviceH = config.getint('Default' ,'deviceh')
 
@@ -474,8 +484,8 @@ class Recognition:
         print(f'{name}: {path}')
 
     def __initCapDevice(self):
-        if self.capDevice != '-1' :
-            self.cap = cv2.VideoCapture(self.capDevice + cv2.CAP_DSHOW)
+        if self.capDevice == RecType.LOCALHOST:
+            self.cap = cv2.VideoCapture( 0 + cv2.CAP_DSHOW)
             print( 'capture is {}{}\n'.format(self.cap.isOpened() ,'' if self.cap.isOpened() else ' \n\t please check the camera is existed or recapture again.') )
             if self.cap.isOpened():        
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH ,self.deviceW )
@@ -494,63 +504,48 @@ class Recognition:
 
                 self.ret ,self.frame = self.cap.read()  #初始化
                 self.stopThread = False   
-        else:
-            self.cap = cv2.VideoCapture('0' + cv2.CAP_DSHOW)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH ,self.deviceW )
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,self.deviceH )
-            self.ret ,self.frame = self.cap.read()  #初始化
-            self.stopThread = False
-
+        elif self.capDevice == RecType.CLIENT:
             self.clientCam = ClientCam()
-                #cline的get_img可以取代
-                # self.cap = None
-                # self.stopThread = False
-                # TCP_IP = "192.168.100.143"
-                # TCP_PORT = 8080
-                # self.sock.connect((TCP_IP, TCP_PORT))
-                # length = self.recvall(self.sock,16)
-                # stringData =self.recvall(self.sock, int(length))
-                # data = np.fromstring(stringData, dtype='uint8')
-                # decimg=cv2.imdecode(data,1)
-                # sp = decimg.shape
+            self.cap = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
+            if self.cap.isOpened():
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH ,self.deviceW )
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,self.deviceH )
+                self.ret ,self.frame = self.cap.read()  #初始化
+                self.stopThread = False
 
-                # #以下cfg
-                # self.capHeight = int(sp[0])
-                # self.capWidth  = int(sp[1])
-                # self.regAreaW = int(self.capWidth/4)  if self.regAreaW == -1 else int((self.capWidth  - self.regAreaW)/2)
-                # self.regAreaH = int(self.capHeight/4) if self.regAreaH == -1 else int((self.capHeight - self.regAreaH)/2)
-                # print(f'regAreaW: {self.regAreaW} ,regAreaH:{self.regAreaH}')
+        elif self.capDevice == RecType.SERVER:
+            self.serverCam = ServerCam()
+            decimg = self.serverCam.get_img()
+            h ,w ,c = decimg.shape
+            self.capHeight = h
+            self.capWidth  = w
+            self.c_w = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)  / darknet.network_width(self.facialDetection.netMain)
+            self.c_h = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / darknet.network_height(self.facialDetection.netMain) 
+            self.regAreaW = int(self.capWidth/4)  if self.regAreaW == -1 else int((self.capWidth  - self.regAreaW)/2)
+            self.regAreaH = int(self.capHeight/4) if self.regAreaH == -1 else int((self.capHeight - self.regAreaH)/2)
+            print(f'regAreaW: {self.regAreaW} ,regAreaH:{self.regAreaH}')
 
-                # self.regAreaPt1 = (self.regAreaW, self.regAreaH )
-                # self.regAreaPt2 = (self.capWidth - self.regAreaW ,self.capHeight - self.regAreaH)
-                # self.ret = True
-                # self.frame = decimg
-                # self.c_w = sp[1]/ darknet.network_width(self.facialDetection.netMain)
-                # self.c_h = sp[0]/ darknet.network_height(self.facialDetection.netMain)
+            self.regAreaPt1 = (self.regAreaW, self.regAreaH )
+            self.regAreaPt2 = (self.capWidth - self.regAreaW ,self.capHeight - self.regAreaH)
+
+            self.ret ,self.frame= True ,decimg     
+            self.c_w = self.capWidth  / darknet.network_width(self.facialDetection.netMain)
+            self.c_h = self.capHeight / darknet.network_height(self.facialDetection.netMain)
   
     def __getImge(self):
-        '''
-        while True:
-            if self.stopThread:
-                return
-            
-            self.ret ,self.frame = self.cap.read()
-            time.sleep(0.016)
-        '''
         while True:
             if self.stopThread:
                 return
 
-            if self.cap == None:
-                length = self.recvall(self.sock,16)
-                stringData =self.recvall(self.sock, int(length))
-                
-                data = np.fromstring(stringData, dtype='uint8')
-                decimg=cv2.imdecode(data,1)
-                
-                self.ret = True
-                self.frame = decimg
-                cv2.waitKey(5)
+            if self.capDevice == RecType.SERVER:
+                try
+                    self.ret ,self.frame  = True ,self.serverCam.get_img()
+                    cv2.waitKey(0.033)
+                except  ConnectionResetError as e:
+                    print("該客戶機異常！已被強迫斷開連接",e)
+                    print("正在等待連接")
+
+                    cam.conn , cam.addr = cam.s.accept()
             else:
                 self.ret ,self.frame = self.cap.read()
                 time.sleep(0.016)

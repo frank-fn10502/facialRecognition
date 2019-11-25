@@ -3,6 +3,8 @@ import time
 import threading
 import json
 
+from enum import Enum
+
 class Dot:
     def __init__(self ,x ,y):
         self.x = x
@@ -105,3 +107,9 @@ class OutputHandler:
                 jf.write(myData)      
 
         return myData    
+
+
+class RecType(Enum):
+    SERVER = 'server'
+    CLIENT = 'client'
+    LOCALHOST = 'localhost'
