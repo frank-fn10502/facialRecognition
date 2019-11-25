@@ -538,7 +538,7 @@ class Recognition:
                 return
 
             if self.capDevice == RecType.SERVER:
-                try
+                try:
                     self.ret ,self.frame  = True ,self.serverCam.get_img()
                     cv2.waitKey(0.033)
                 except  ConnectionResetError as e:

@@ -4,8 +4,9 @@ import cv2
 import numpy as np
 
 from keras.models import load_model
+from keras.applications.mobilenet import preprocess_input
 #from keras.applications.mobilenetv2 import preprocess_input
-from keras.applications.inception_v3 import preprocess_input
+#from keras.applications.inception_v3 import preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
 
 from utils import FacialFeature
