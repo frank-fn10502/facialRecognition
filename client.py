@@ -16,8 +16,8 @@ class ClientCam:
         ip = socket.gethostbyname(hostname)
         print(ip)
         self.s = socket.socket()
-        self.TCP_IP = '0.tcp.ngrok.io'
-        self.TCP_PORT = 11794
+        self.TCP_IP = '127.0.0.1'
+        self.TCP_PORT = 8080#11794
         #self.capture = cv2.VideoCapture(0)
         self.s.connect((self.TCP_IP, self.TCP_PORT))
         self.encode_param=[int(cv2.IMWRITE_JPEG_QUALITY),90]
@@ -72,6 +72,7 @@ class ClientCam:
         return jsonData
     
     def get_img(self):   
+       '''
        length = self.recvall(self.s,16)
        stringData = self.recvall(self.s, int(length))
        if stringData == b'stop':
@@ -87,8 +88,8 @@ class ClientCam:
            print("START")
            self.state = "end"
            return
-       self.get_img_count = int(self.recvall(self.s,16))
-       
+       #self.get_img_count = int(self.recvall(self.s,16))
+       '''
        length = self.recvall(self.s,16)
        stringData = self.recvall(self.s, int(length))
        data = numpy.frombuffer(stringData, dtype='uint8')
@@ -96,7 +97,8 @@ class ClientCam:
        #cv2.imshow("result",decimg)
        #cv2.waitKey(10)
        #print(length, jsonData)
-       return stringData
+       #return stringData
+       return decimg
         
     def show(self,data):
         print(data)

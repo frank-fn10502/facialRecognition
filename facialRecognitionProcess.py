@@ -27,7 +27,7 @@ import ageGenderCore
 import emotionCore
 from utils import CircularQueue ,OutputHandler ,Dot ,Square  ,FacialFeature ,RecType
 from client import ClientCam
-from server import ServerCam
+from server.server import ServerCam
 
 
 
@@ -154,10 +154,12 @@ class Recognition:
         self.emotionRec = emotionCore.EmotionRec()
 
         #---------------OPENCV---------------------------------------------
-        self.capDevice = 0 #'http://admin:123456@140.126.20.95/video.cgi'#0  # "./data/YouTube_Rewind_2016.mp4"
+        #self.capDevice = 0 #'http://admin:123456@140.126.20.95/video.cgi'#0  # "./data/YouTube_Rewind_2016.mp4"
         self.deviceW = 1920
         self.deviceH = 1080
         self.cap = None
+        self.ret ,self.frame = False ,None
+        self.c_w ,self.c_h = 1.0 ,1.0
         self.sock = socket.socket()#遠端攝影機
         
         #---------------server-client---------------------------------------------
@@ -165,7 +167,7 @@ class Recognition:
         self.serverCam = None
 
         #--------------參數----------------------------------------------
-        self.role = role
+        self.capDevice = role
         self.writeJson    = False#True
         self.maxFaceCount = 10
         self.saveInterval = 0.5
@@ -199,24 +201,27 @@ class Recognition:
             return False
         
         pre_t = time.time()
-        #----------------初始化yolo模型-------------------------------
-        t1 = threading.Thread( target=self.facialDetection.initYOLO )
+        if self.capDevice != RecType.CLIENT:          
+            #----------------初始化yolo模型-------------------------------
+            t1 = threading.Thread( target=self.facialDetection.initYOLO )
 
-        #------------初始化facenet模型和資料---------------------------
-        t1.start()
-        self.facialRecognition.initFacenet("./weights/20180402-114759.pb")# 初始化facenet模型和資料 20180402-114759.pb 20180408-102900.pb       
-        self.facialRecognition.initFolderImage()
+            #------------初始化facenet模型和資料---------------------------
+            t1.start()
+            self.facialRecognition.initFacenet("./weights/20180402-114759.pb")# 初始化facenet模型和資料 20180402-114759.pb 20180408-102900.pb       
+            self.facialRecognition.initFolderImage()
 
-        #------------初始gender_age-----------------------------------  
-        self.genderAgeRec.initModel()
+            #------------初始gender_age-----------------------------------  
+            self.genderAgeRec.initModel()
 
-        #------------初始gender_age-----------------------------------  
-        self.emotionRec.initModel()
+            #------------初始gender_age-----------------------------------  
+            self.emotionRec.initModel()
 
-        #------------初始攝影機參數------------------------------------    
-        self.__initCapDevice()
+            #------------初始攝影機參數------------------------------------    
+            self.__initCapDevice()
 
-        t1.join()
+            t1.join()    
+        else:
+            self.__initCapDevice()
 
         print(f'perpare all cost:{time.time() - pre_t:.3f}')
         return True
@@ -308,16 +313,16 @@ class Recognition:
         return self.faceitem == 1 and self.needName ,regFaceImg
 
     def recognized(self  ,displayInfo = True):
-        if self.role == RecType.CLIENT:
+        if self.capDevice == RecType.CLIENT:
             self.currentImage = cv2.flip(self.frame ,1)  #左右翻轉
             self.currentImage = cv2.cvtColor(self.currentImage, cv2.COLOR_BGR2RGB)
             self.clientCam.send_img(self.currentImage)
-            self.currentImage = cline.get_img()
+            self.currentImage = self.clientCam.get_img()
 
             if displayInfo:   
                 self.__drawOnImg()           
 
-        elif self.role == RecType.SERVER or self.role == RecType.LOCALHOST:
+        elif self.capDevice == RecType.SERVER or self.capDevice == RecType.LOCALHOST:
             pre_t = time.time()
             self.__preProcess()
             yolo_time = time.time() - pre_t
@@ -376,8 +381,8 @@ class Recognition:
             print("=" * 40 ,"\n")  
 
             #self.postAnswer()
-            if self.role == RecType.SERVER:
-                self.serverCam.send_img()
+            #if self.capDevice == RecType.SERVER:
+            #    self.serverCam.send_img(self.currentImage)
 
             return self.__createJsonFile()
  
@@ -514,13 +519,15 @@ class Recognition:
                 self.stopThread = False
 
         elif self.capDevice == RecType.SERVER:
+            #while True:
+            #    try:
             self.serverCam = ServerCam()
             decimg = self.serverCam.get_img()
             h ,w ,c = decimg.shape
             self.capHeight = h
             self.capWidth  = w
-            self.c_w = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)  / darknet.network_width(self.facialDetection.netMain)
-            self.c_h = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / darknet.network_height(self.facialDetection.netMain) 
+            self.c_w = w  / darknet.network_width(self.facialDetection.netMain)
+            self.c_h = h / darknet.network_height(self.facialDetection.netMain) 
             self.regAreaW = int(self.capWidth/4)  if self.regAreaW == -1 else int((self.capWidth  - self.regAreaW)/2)
             self.regAreaH = int(self.capHeight/4) if self.regAreaH == -1 else int((self.capHeight - self.regAreaH)/2)
             print(f'regAreaW: {self.regAreaW} ,regAreaH:{self.regAreaH}')
@@ -531,6 +538,10 @@ class Recognition:
             self.ret ,self.frame= True ,decimg     
             self.c_w = self.capWidth  / darknet.network_width(self.facialDetection.netMain)
             self.c_h = self.capHeight / darknet.network_height(self.facialDetection.netMain)
+            #break
+
+            #    except Exception as e:
+            #        print(e)
   
     def __getImge(self):
         while True:
@@ -540,12 +551,13 @@ class Recognition:
             if self.capDevice == RecType.SERVER:
                 try:
                     self.ret ,self.frame  = True ,self.serverCam.get_img()
-                    cv2.waitKey(0.033)
+                    time.sleep(0.016)
+                    #cv2.waitKey(0.033)
                 except  ConnectionResetError as e:
                     print("該客戶機異常！已被強迫斷開連接",e)
                     print("正在等待連接")
 
-                    cam.conn , cam.addr = cam.s.accept()
+                    self.serverCam.conn , self.serverCam.addr = self.serverCam.s.accept()
             else:
                 self.ret ,self.frame = self.cap.read()
                 time.sleep(0.016)
