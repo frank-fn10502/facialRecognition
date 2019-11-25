@@ -74,6 +74,7 @@ class AccData:  #Accumulated recognized facial data
         self.counter = 5
         self.lastFacialFeature = facialFeature
         
+        self.qualifiedFace = facialFeature.qualifiedFace
         self.dataList.push(facialFeature)
         self.__adjustBBX(facialFeature)
         
@@ -158,7 +159,6 @@ class Recognition:
         self.clientCam = None
 
         #--------------參數----------------------------------------------
-        self.jsonFilePath = './other/outputData/detectionData.json'
         self.writeJson    = False#True
         self.maxFaceCount = 10
         self.saveInterval = 0.5
@@ -369,10 +369,13 @@ class Recognition:
             print("=" * 40 ,"\n")  
 
             #self.postAnswer()
-            return self.__createJsonFile(self.facialFeatureList)
+            return self.__createJsonFile()
  
     def stopAll(self):
         self.outputHandler.write = False
+
+        if self.clientCam is not None:
+            self.clientCam.end()
     
     def postAnswer(self):
         my_data = {'msg' : 'f3'}
@@ -417,27 +420,20 @@ class Recognition:
                     (0, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                     [255, 0, 0], 1)
 
-        #self.outputHandler.addResult(f"{datetime.datetime.now()} {processTime:.4f} {len(facialFeatureList)}")
+        #self.outputHandler.addText(f"{datetime.datetime.now()} {processTime:.4f} {len(facialFeatureList)}")
         print( f"height:{self.currentImage.shape[0]} ,width:{self.currentImage.shape[1]}" \
                f" fps:{fps:.2f} time:{processTime:.5f} faceNum:{len(self.facialFeatureList)}")
 
-    def __createJsonFile(self ,facialFeatureList):
-        if facialFeatureList is not None:
-            dataList = []
-            for displayText ,info in zip(self.displayTextList ,facialFeatureList):
-                #[name ,minx ,miny ,w ,h]
-                data = [displayText[0].split(' [')[0] ,info.xmin * self.c_w ,info.ymin * self.c_h ,info.w ,info.h] 
-                dataList.append(data)
-
-            myData = json.dumps(dataList ,ensure_ascii=False)
-            #print(myData)
-            if self.writeJson:
-                try:
-                    with open(self.jsonFilePath ,'w' ,encoding='UTF-8') as jf:
-                        jf.write(myData)
-                except Exception as e:
-                    print(e)                        
-        return myData
+    def __createJsonFile(self):
+        dataList = []
+        if self.resultList is not None:
+            for result in self.resultList:   
+                if result.qualifiedFace:  
+                    data = [str(result) \
+                        ,result.bbx.xmin * self.c_w ,result.bbx.ymin * self.c_h ,result.bbx.yolo.w ,result.bbx.yolo.h]
+                    dataList.append(data)
+        
+        return self.outputHandler.createJsonData(dataList ,writeJson = self.writeJson)
 
     def __initCfgData(self):
         config = cfg.ConfigParser()
@@ -453,7 +449,7 @@ class Recognition:
             self.regAreaW     = config.getint('Default' ,'regAreaw')    #-1 代表預設
             self.regAreaH     = config.getint('Default' ,'regAreah')
 
-            self.jsonFilePath = config['Default']['jsonfilepath']
+            self.outputHandler.jsonFilePath = config['Default']['jsonfilepath']
             self.writeJson    = config.getboolean('Default' ,'writejson')
 
             self.facialDetection.yoloTresh = config.getfloat('DectionCore' ,'thresh')
@@ -461,7 +457,7 @@ class Recognition:
             self.facialRecognition.distTresh = config.getfloat('RecognitionCore' ,'disttresh')
             self.facialRecognition.fileRootPath = config.get('RecognitionCore' ,'imagefolder')
 
-            self.__insureHasFolder('decDataResultPath' ,self.jsonFilePath)
+            self.__insureHasFolder('decDataResultPath' ,self.outputHandler.jsonFilePath)
             self.__insureHasFolder('imagePath' ,self.facialRecognition.fileRootPath)
 
         except FileNotFoundError:
@@ -475,7 +471,7 @@ class Recognition:
 
     def __insureHasFolder(self ,name ,path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        print(f'{name}: {self.jsonFilePath}')
+        print(f'{name}: {path}')
 
     def __initCapDevice(self):
         if self.capDevice != '-1' :
@@ -502,6 +498,9 @@ class Recognition:
             self.cap = cv2.VideoCapture('0' + cv2.CAP_DSHOW)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH ,self.deviceW )
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,self.deviceH )
+            self.ret ,self.frame = self.cap.read()  #初始化
+            self.stopThread = False
+
             self.clientCam = ClientCam()
                 #cline的get_img可以取代
                 # self.cap = None
@@ -555,16 +554,7 @@ class Recognition:
             else:
                 self.ret ,self.frame = self.cap.read()
                 time.sleep(0.016)
-    '''
-    def recvall(self, sock, count):
-        buf = b''
-        while count:
-            newbuf = sock.recv(count)
-            if not newbuf: return None
-            buf += newbuf
-            count -= len(newbuf)
-        return buf
-    '''
+
     def __getResultList(self, facialFeatureList): #用累計的datalist推測出結果
         resultList = []                         #對應到相對的 累計list(用這list推測出結果)
         for index ,f in enumerate(facialFeatureList):           

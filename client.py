@@ -117,9 +117,9 @@ class ClientCam:
             cv2.waitKey(10)            
         
     def end(self):
-        self.capture.release()
+        #self.capture.release()
         self.s.close()
-        cv2.destroyAllWindows()
+        #cv2.destroyAllWindows()
 
 
 

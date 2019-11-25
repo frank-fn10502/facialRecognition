@@ -1,6 +1,7 @@
 import os
 import time
 import threading
+import json
 
 class Dot:
     def __init__(self ,x ,y):
@@ -71,16 +72,17 @@ class CircularQueue:
 
 
 class OutputHandler:
-    def __init__(self):
+    def __init__(self ,fileName = "./other/outputData/data.txt",jsonFilePath = './other/outputData/detectionData.json'):
         self.write = True
         self.textList = []
-        self.fileName = "./other/outputData/data.txt"
+        self.fileName = fileName
+        self.jsonFilePath = jsonFilePath
 
-    def start(self):
         os.makedirs(os.path.dirname(self.fileName), exist_ok=True)
+        os.makedirs(os.path.dirname(self.jsonFilePath), exist_ok=True)
 
+    def start(self):       
         threading.Thread(target=self.__writeData).start()
-        print("outputDone!!!")
 
     def addResult(self ,text):
         self.textList.append(text)
@@ -91,3 +93,15 @@ class OutputHandler:
                 if len(self.textList) > 0:
                     myfile.write(f"{self.textList.pop(0)}\n")
                 time.sleep(0.05)
+
+    def createJsonData(self ,jsonData ,needPrint = False ,writeJson = False):
+        myData = json.dumps(jsonData ,ensure_ascii=False)
+
+        if needPrint:
+            print(myData)
+
+        if writeJson:
+            with open(self.jsonFilePath ,'w' ,encoding='UTF-8') as jf:
+                jf.write(myData)      
+
+        return myData    
