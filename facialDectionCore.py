@@ -24,7 +24,7 @@ class BBX:
     oriImgSize  = None  #Square(w ,h) 
     def __init__(self ,yoloPred):
         #------------------設定-----------------------------------------     
-        self.fullFaceOffest = 30
+        self.fullFaceOffest = 10
         self.fullFace = True  #確定臉沒有被邊緣切割掉
         #------------------變數-----------------------------------------
         self.yolo = yoloPred
@@ -77,7 +77,7 @@ class FacialDectionCore:
         #----------------屬性-------------------------------------------
         self.mainImgSize = None #(W ,H)
         self.yoloTresh = 0.7
-        self.minimalBBX = Square(30, 30)
+        self.minimalBBX = Square(60, 60)
 
     '''
     def initYOLO(self ,configPath = "./cfg/yolov3-tiny-gender-test.cfg"
