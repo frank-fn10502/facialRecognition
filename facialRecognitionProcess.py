@@ -24,6 +24,7 @@ from facialRecognitionCore import Identity
 import ageGenderCore
 import emotionCore
 from utils import CircularQueue ,OutputHandler ,Dot ,Square  ,FacialFeature 
+from client import ClientCam
 
 
 class AccData:  #Accumulated recognized facial data
@@ -153,6 +154,8 @@ class Recognition:
         self.cap = None
         self.sock = socket.socket()#遠端攝影機
         
+        #---------------server-client---------------------------------------------
+        self.clientCam = None
 
         #--------------參數----------------------------------------------
         self.jsonFilePath = './other/outputData/detectionData.json'
@@ -298,65 +301,75 @@ class Recognition:
         return self.faceitem == 1 and self.needName ,regFaceImg
 
     def recognized(self  ,displayInfo = True):
-        pre_t = time.time()
-        self.__preProcess()
-        yolo_time = time.time() - pre_t
+        if self.capDevice == '-1':
+            self.currentImage = cv2.flip(self.frame ,1)  #左右翻轉
+            self.currentImage = cv2.cvtColor(self.currentImage, cv2.COLOR_BGR2RGB)
+            self.clientCam.send_img(self.currentImage)
+            self.currentImage = cline.get_img()
 
-        faceImages = []
-        faceImage_ori_list = []
-        for f in self.facialFeatureList:
-            if f.qualifiedFace:
-                bbx = f.bbx
-                # 裁剪座標為[y0:y1 ,x0:x1]
-                croppedImage = self.resizeImg[bbx.ymin:bbx.ymax ,bbx.xmin:bbx.xmax]
-                faceImages.append(croppedImage)
-                faceImage_ori_list.append(self.__getFacialImgWithPatch(bbx))   
-        '''
-        temp1 = np.asarray(faceImages[0]).shape
-        temp2 = np.asarray(faceImage_ori_list[0]).shape
-        if temp1[0] != 0:
-            print(f"faceImages: {temp1},比值(h/w):{temp1[1] / (temp1[2] * 1.0) :.3f}\n" + \
-                  f"faceImage_ori_list:{temp2} ,比值(h/w):{temp1[1] * self.c_h / (temp1[2] * self.c_w) :.3f}")   
-               
+            if displayInfo:   
+                self.__drawOnImg()
+            
         else:
-            print(f"faceImages{faceImages} length:{len(faceImages) }")
-        '''
+            pre_t = time.time()
+            self.__preProcess()
+            yolo_time = time.time() - pre_t
 
-        #####
-        pre_t = time.time()
-        self.genderAgeRec.predict(self.facialFeatureList ,faceImage_ori_list)
-        g_time = time.time() - pre_t       
-        #####      
-        
-        #####
-        pre_t = time.time() 
-        self.facialRecognition.compareFace(self.facialFeatureList ,faceImages)
-        id_time = time.time() - pre_t
-        #####
+            faceImages = []
+            faceImage_ori_list = []
+            for f in self.facialFeatureList:
+                if f.qualifiedFace:
+                    bbx = f.bbx
+                    # 裁剪座標為[y0:y1 ,x0:x1]
+                    croppedImage = self.resizeImg[bbx.ymin:bbx.ymax ,bbx.xmin:bbx.xmax]
+                    faceImages.append(croppedImage)
+                    faceImage_ori_list.append(self.__getFacialImgWithPatch(bbx))   
+            '''
+            temp1 = np.asarray(faceImages[0]).shape
+            temp2 = np.asarray(faceImage_ori_list[0]).shape
+            if temp1[0] != 0:
+                print(f"faceImages: {temp1},比值(h/w):{temp1[1] / (temp1[2] * 1.0) :.3f}\n" + \
+                    f"faceImage_ori_list:{temp2} ,比值(h/w):{temp1[1] * self.c_h / (temp1[2] * self.c_w) :.3f}")   
+                
+            else:
+                print(f"faceImages{faceImages} length:{len(faceImages) }")
+            '''
 
-        '''情緒暫時不用
-        pre_t = time.time()
-        self.emotionRec.predict(facialFeatureList ,faceImage_ori_list)
-        e_time = time.time() - pre_t    
-        '''
+            #####
+            pre_t = time.time()
+            self.genderAgeRec.predict(self.facialFeatureList ,faceImage_ori_list)
+            g_time = time.time() - pre_t       
+            #####      
+            
+            #####
+            pre_t = time.time() 
+            self.facialRecognition.compareFace(self.facialFeatureList ,faceImages)
+            id_time = time.time() - pre_t
+            #####
 
-        print(f"self.facialFeatureList :{len(self.facialFeatureList)}")
-        self.resultList = self.__getResultList(self.facialFeatureList) #從累計的list中取得結果
+            '''情緒暫時不用
+            pre_t = time.time()
+            self.emotionRec.predict(facialFeatureList ,faceImage_ori_list)
+            e_time = time.time() - pre_t    
+            '''
 
-        if len(self.resultList) > 0:
-            for index ,result in enumerate( self.resultList):
-                print(f"{index}. " ,end='')
-                result.calResult()
+            print(f"self.facialFeatureList :{len(self.facialFeatureList)}")
+            self.resultList = self.__getResultList(self.facialFeatureList) #從累計的list中取得結果
 
-        if displayInfo:   
-            self.__drawOnImg()
+            if len(self.resultList) > 0:
+                for index ,result in enumerate( self.resultList):
+                    print(f"{index}. " ,end='')
+                    result.calResult()
 
-        #print(f"reco gender_age: {g_time:.2f}s | reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | emotion: {e_time:.2f} | total time: {id_time + g_time + yolo_time + e_time:.4f}")
-        #print(f"reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | total time: {id_time + yolo_time:.4f}") 
-        print("=" * 40 ,"\n")  
+            if displayInfo:   
+                self.__drawOnImg()
 
-        #self.postAnswer()
-        return self.__createJsonFile(self.facialFeatureList)
+            #print(f"reco gender_age: {g_time:.2f}s | reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | emotion: {e_time:.2f} | total time: {id_time + g_time + yolo_time + e_time:.4f}")
+            #print(f"reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | total time: {id_time + yolo_time:.4f}") 
+            print("=" * 40 ,"\n")  
+
+            #self.postAnswer()
+            return self.__createJsonFile(self.facialFeatureList)
  
     def stopAll(self):
         self.outputHandler.write = False
@@ -486,31 +499,35 @@ class Recognition:
                 self.ret ,self.frame = self.cap.read()  #初始化
                 self.stopThread = False   
         else:
+            self.cap = cv2.VideoCapture('0' + cv2.CAP_DSHOW)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH ,self.deviceW )
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,self.deviceH )
+            self.clientCam = ClientCam()
                 #cline的get_img可以取代
-                self.cap = None
-                self.stopThread = False
-                TCP_IP = "192.168.100.143"
-                TCP_PORT = 8080
-                self.sock.connect((TCP_IP, TCP_PORT))
-                length = self.recvall(self.sock,16)
-                stringData =self.recvall(self.sock, int(length))
-                data = np.fromstring(stringData, dtype='uint8')
-                decimg=cv2.imdecode(data,1)
-                sp = decimg.shape
+                # self.cap = None
+                # self.stopThread = False
+                # TCP_IP = "192.168.100.143"
+                # TCP_PORT = 8080
+                # self.sock.connect((TCP_IP, TCP_PORT))
+                # length = self.recvall(self.sock,16)
+                # stringData =self.recvall(self.sock, int(length))
+                # data = np.fromstring(stringData, dtype='uint8')
+                # decimg=cv2.imdecode(data,1)
+                # sp = decimg.shape
 
-                #以下cfg
-                self.capHeight = int(sp[0])
-                self.capWidth  = int(sp[1])
-                self.regAreaW = int(self.capWidth/4)  if self.regAreaW == -1 else int((self.capWidth  - self.regAreaW)/2)
-                self.regAreaH = int(self.capHeight/4) if self.regAreaH == -1 else int((self.capHeight - self.regAreaH)/2)
-                print(f'regAreaW: {self.regAreaW} ,regAreaH:{self.regAreaH}')
+                # #以下cfg
+                # self.capHeight = int(sp[0])
+                # self.capWidth  = int(sp[1])
+                # self.regAreaW = int(self.capWidth/4)  if self.regAreaW == -1 else int((self.capWidth  - self.regAreaW)/2)
+                # self.regAreaH = int(self.capHeight/4) if self.regAreaH == -1 else int((self.capHeight - self.regAreaH)/2)
+                # print(f'regAreaW: {self.regAreaW} ,regAreaH:{self.regAreaH}')
 
-                self.regAreaPt1 = (self.regAreaW, self.regAreaH )
-                self.regAreaPt2 = (self.capWidth - self.regAreaW ,self.capHeight - self.regAreaH)
-                self.ret = True
-                self.frame = decimg
-                self.c_w = sp[1]/ darknet.network_width(self.facialDetection.netMain)
-                self.c_h = sp[0]/ darknet.network_height(self.facialDetection.netMain)
+                # self.regAreaPt1 = (self.regAreaW, self.regAreaH )
+                # self.regAreaPt2 = (self.capWidth - self.regAreaW ,self.capHeight - self.regAreaH)
+                # self.ret = True
+                # self.frame = decimg
+                # self.c_w = sp[1]/ darknet.network_width(self.facialDetection.netMain)
+                # self.c_h = sp[0]/ darknet.network_height(self.facialDetection.netMain)
   
     def __getImge(self):
         '''
@@ -538,7 +555,7 @@ class Recognition:
             else:
                 self.ret ,self.frame = self.cap.read()
                 time.sleep(0.016)
-
+    '''
     def recvall(self, sock, count):
         buf = b''
         while count:
@@ -547,7 +564,7 @@ class Recognition:
             buf += newbuf
             count -= len(newbuf)
         return buf
-
+    '''
     def __getResultList(self, facialFeatureList): #用累計的datalist推測出結果
         resultList = []                         #對應到相對的 累計list(用這list推測出結果)
         for index ,f in enumerate(facialFeatureList):           
