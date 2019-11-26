@@ -22,12 +22,12 @@ while True:
         if faceRecoProcess.ret:
             faceRecoProcess.recognized()
             cv2.imshow("result",cv2.cvtColor(faceRecoProcess.currentImage, cv2.COLOR_RGB2BGR))
-            
+            cv2.waitKey(1)
         else:
             print(f'no frame: {datetime.datetime.now()}' ,end = '\r')
 
     except  ConnectionResetError as e:
-        #cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
         print("該客戶機異常！已被強迫斷開連接",e)
         print("正在等待連接")
 

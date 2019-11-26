@@ -314,13 +314,12 @@ class Recognition:
 
     def recognized(self  ,displayInfo = True):
         if self.capDevice == RecType.CLIENT:
-            self.currentImage = cv2.flip(self.frame ,1)  #左右翻轉
-            self.currentImage = cv2.cvtColor(self.currentImage, cv2.COLOR_BGR2RGB)
-            self.clientCam.send_img(self.currentImage)
+            self.clientCam.send_img(self.frame)
             self.currentImage = self.clientCam.get_img()
+            time.sleep(0.016)
 
-            if displayInfo:   
-                self.__drawOnImg()           
+            #if displayInfo:   
+            #    self.__drawOnImg()           
 
         elif self.capDevice == RecType.SERVER or self.capDevice == RecType.LOCALHOST:
             pre_t = time.time()
@@ -381,8 +380,8 @@ class Recognition:
             print("=" * 40 ,"\n")  
 
             #self.postAnswer()
-            #if self.capDevice == RecType.SERVER:
-            #    self.serverCam.send_img(self.currentImage)
+            if self.capDevice == RecType.SERVER:
+                self.serverCam.send_img(self.currentImage)
 
             return self.__createJsonFile()
  
@@ -445,7 +444,7 @@ class Recognition:
             for result in self.resultList:   
                 if result.qualifiedFace:  
                     data = [str(result) \
-                        ,result.bbx.xmin * self.c_w ,result.bbx.ymin * self.c_h ,result.bbx.yolo.w ,result.bbx.yolo.h]
+                           ,result.bbx.xmin * self.c_w ,result.bbx.ymin * self.c_h ,result.bbx.yolo.w ,result.bbx.yolo.h]
                     dataList.append(data)
         
         return self.outputHandler.createJsonData(dataList ,writeJson = self.writeJson)

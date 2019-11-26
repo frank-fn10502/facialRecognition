@@ -16,7 +16,7 @@ class ClientCam:
         ip = socket.gethostbyname(hostname)
         print(ip)
         self.s = socket.socket()
-        self.TCP_IP = '127.0.0.1'
+        self.TCP_IP = ip #'127.0.0.1'
         self.TCP_PORT = 8080#11794
         #self.capture = cv2.VideoCapture(0)
         self.s.connect((self.TCP_IP, self.TCP_PORT))
@@ -93,7 +93,11 @@ class ClientCam:
        length = self.recvall(self.s,16)
        stringData = self.recvall(self.s, int(length))
        data = numpy.frombuffer(stringData, dtype='uint8')
-       decimg=cv2.imdecode(data,1)
+
+       #length = self.recvall(self.s,16)
+       #stringData = self.recvall(self.s, int(length))
+
+       decimg = cv2.imdecode(data,1)
        #cv2.imshow("result",decimg)
        #cv2.waitKey(10)
        #print(length, jsonData)

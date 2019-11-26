@@ -17,7 +17,7 @@ class ServerCam:
         ip = socket.gethostbyname(hostname)
         print(ip)
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.TCP_IP = '127.0.0.1'
+        self.TCP_IP = ip#'127.0.0.1'
         self.TCP_PORT = 8080
         self.s.bind((self.TCP_IP, self.TCP_PORT))
         self.s.listen(True)
@@ -50,7 +50,8 @@ class ServerCam:
         le = str(len(stringData))
         self.conn.send( str.encode( le.ljust(16)));
         self.conn.send( stringData );
-        self.conn.send(str.encode(str(self.img_count).ljust(16)));
+
+        #self.conn.send(str.encode(str(self.img_count).ljust(16)));
         
     def send_jeson(self,data):
         if len(self.img_count) > 0:
