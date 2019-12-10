@@ -28,6 +28,7 @@ import emotionCore
 from utils import CircularQueue ,OutputHandler ,Dot ,Square  ,FacialFeature ,RecType
 from client import ClientCam
 from server.server import ServerCam
+from faceAlignment import Preprocessing
 
 
 
@@ -141,7 +142,9 @@ class AccData:  #Accumulated recognized facial data
 
 
 class Recognition:
-    def __init__(self ,role = RecType.LOCALHOST):        
+    def __init__(self ,role = RecType.LOCALHOST):
+        #---------------------------設定預處理資料----------------------------------------
+        self.facialPreprocessing = Preprocessing()        
         # --------------------------設定人臉偵測演算法------------------------------------
         self.facialDetection = facialDectionCore.FacialDectionCore()  # 讀取並設定YOLO
         # ------------------------------------設定人臉辨識演算法--------------------------
@@ -333,8 +336,13 @@ class Recognition:
                     bbx = f.bbx
                     # 裁剪座標為[y0:y1 ,x0:x1]
                     croppedImage = self.resizeImg[bbx.ymin:bbx.ymax ,bbx.xmin:bbx.xmax]
+                    croppedImage = self.facialPreprocessing.lightProcessing(croppedImage)#光線調整
+                    croppedImage = self.facialPreprocessing.landmarks_RotImg(croppedImage)#旋轉
                     faceImages.append(croppedImage)
-                    faceImage_ori_list.append(self.__getFacialImgWithPatch(bbx))   
+                    
+                    faceImage_ori_list.append(self.facialPreprocessing.landmarks_RotImg(
+                                    self.facialPreprocessing.lightProcessing(
+                                            self.__getFacialImgWithPatch(bbx))))   
             '''
             temp1 = np.asarray(faceImages[0]).shape
             temp2 = np.asarray(faceImage_ori_list[0]).shape
