@@ -151,7 +151,7 @@ class Recognition:
         self.genderAgeRec = ageGenderCore.GenderAgeRec()
 
         #------------初始化模型和資料-emotion----------------------------------       
-        self.emotionRec = emotionCore.EmotionRec()
+        #self.emotionRec = emotionCore.EmotionRec()
 
         #---------------OPENCV---------------------------------------------
         #self.capDevice = 0 #'http://admin:123456@140.126.20.95/video.cgi'#0  # "./data/YouTube_Rewind_2016.mp4"
@@ -214,7 +214,7 @@ class Recognition:
             self.genderAgeRec.initModel()
 
             #------------初始gender_age-----------------------------------  
-            self.emotionRec.initModel()
+            #self.emotionRec.initModel()
 
             #------------初始攝影機參數------------------------------------    
             self.__initCapDevice()

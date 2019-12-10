@@ -101,7 +101,7 @@ class FacialRecognitionCore:
         self.distTresh = 0.85
         
         config = tf.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = 0.4
+        config.gpu_options.per_process_gpu_memory_fraction = 0.1
         self.sess = tf.Session(config=config)
         
        
