@@ -36,9 +36,9 @@ from faceAlignment import Preprocessing
 class AccData:  #Accumulated recognized facial data
     def __init__(self ,facialFeature):
         #-------------------參數----------------------------
-        self.dataList = CircularQueue(10)     #[(name1 ,info1) ,(name2 ,info2) , ...]
+        self.dataList = CircularQueue(20)     #[(name1 ,info1) ,(name2 ,info2) , ...]
 
-        self.treshDisplay = 0.6
+        self.treshDisplay = 0.7
         self.treshIOU = 0.8
         self.num_counter = 0
         self.counter  = 5         #設定存活的次數(如果都偵測不到)
@@ -68,10 +68,11 @@ class AccData:  #Accumulated recognized facial data
            inter_x2 = min(self.lastFacialFeature.bbx.xmax ,anotherFacialFeature.bbx.xmax)
            inter_y2 = min(self.lastFacialFeature.bbx.ymax ,anotherFacialFeature.bbx.ymax)
            inter_square = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
-           union_square = self.lastFacialFeature.bbx.yolo.w * self.lastFacialFeature.bbx.yolo.h + anotherFacialFeature.bbx.yolo.w   * anotherFacialFeature.bbx.yolo.h   - inter_square
-
+           union_square = self.lastFacialFeature.bbx.yolo.w * self.lastFacialFeature.bbx.yolo.h + anotherFacialFeature.bbx.yolo.w * anotherFacialFeature.bbx.yolo.h - inter_square
+           #print(f"my:{self.lastFacialFeature.bbx} ,another:{anotherFacialFeature.bbx}")
+           #print(f"inter:{inter_square} ,union:{union_square}")
            IOU = inter_square / union_square * 1.0
-
+           print(f"resultListIou:{IOU}")
            return IOU >= self.treshIOU ,IOU
         else:
             return False ,0
@@ -80,43 +81,62 @@ class AccData:  #Accumulated recognized facial data
         self.counter = 5
         self.lastFacialFeature = facialFeature
         
-        self.qualifiedFace = facialFeature.qualifiedFace
-        self.dataList.push(facialFeature)
+        #self.qualifiedFace = facialFeature.qualifiedFace
+        #self.dataList.push(facialFeature)
         self.__adjustBBX(facialFeature)
         
-    def isThisAccData(self ,faceImgInfo):
-        return self.__calIOU(faceImgInfo)
+    def isThisAccData(self ,facialFeature):
+        #return self.__calIOU(facialFeature)
+        inSameArea ,iou = self.__calIOU(facialFeature)
+        if not inSameArea:
+            counter = 0
+            for f in self.dataList.getList():              
+                dist = np.sqrt(np.sum(np.square(facialFeature.emb - f.emb)))
+                if dist <= 0.85: #distTresh:
+                    counter += 1
+            if counter >= math.ceil(0.6 * self.dataList.len()):
+                inSameArea = True          
+        return inSameArea ,iou
+
 
     def __adjustBBX(self ,facialFeature):
         w = 0
         h = 0
-        count = self.dataList.len()
-        for data in self.dataList.queue:
-            if data != '':
-                w += data.bbx.yolo.w
-                h += data.bbx.yolo.h
+        count = self.dataList.len()     
+        if count > 0:
+            for data in self.dataList.queue:
+                if data != '':
+                    w += data.bbx.yolo.w
+                    h += data.bbx.yolo.h
 
-        w /= count
-        h /= count
-        self.bbx.reCal(facialFeature.bbx.yolo ,math.floor(w) ,math.floor(h))     
+            w /= count
+            h /= count
+        bias = 2 + abs(facialFeature.bbx.yolo.w - w) // 10
+        w = (w + facialFeature.bbx.yolo.w * (bias-1)) / bias if count > 0 else facialFeature.bbx.yolo.w
+        h = (h + facialFeature.bbx.yolo.h * (bias-1)) / bias if count > 0 else facialFeature.bbx.yolo.h
+
+        self.dataList.push(facialFeature)
+        self.bbx.reCal(facialFeature.bbx.yolo ,math.floor(w) ,math.floor(h))    
+        print(f"faceListLen: {self.dataList.len()}") 
 
     def isStillAlive(self):
         self.counter -= 1
         return self.counter >= 0
 
     def calResult(self):
-        nameDict = {}
-        genderList = [0 ,0 ,0] #none ,male ,female
-        ageAvg = 0
-
         self.qualifiedFace = True
-        for f in self.dataList.getList():
-            if not f.qualifiedFace:
-                self.qualifiedFace = False
-                break
-
+        if self.dataList.len() == self.dataList.size():            
+            for f in self.dataList.getList():
+                if not f.qualifiedFace:
+                    self.qualifiedFace = False
+                    break
+        else:
+            self.qualifiedFace = False
      
         if self.qualifiedFace:
+            nameDict = {}
+            genderList = [0 ,0 ,0] #none ,male ,female
+            ageAvg = 0
             for f in self.dataList.getList():
                 genderList[f.gender.genderIndex + 1] += 1
 
@@ -136,8 +156,12 @@ class AccData:  #Accumulated recognized facial data
                     self.name = accName 
 
             self.gender = ageGenderCore.Gender(np.argmax(genderList,axis=0) - 1)
-            self.age    = ageAvg / self.dataList.len()   
+            self.gender = self.gender \
+                          if genderList[self.gender.genderIndex + 1] >= (self.dataList.size() * self.treshDisplay) else \
+                          ageGenderCore.Gender(-1)
 
+            self.age    = ageAvg / self.dataList.len()   
+             
             print(f"name:{nameDict}  ,gender:{genderList}  ,age:{self.age :.2f} ,num:{self.dataList.len()}")  
 
 
@@ -621,5 +645,5 @@ class Recognition:
         for result in self.resultList:
             pt1 = (int(result.bbx.xmin * self.c_w), int(result.bbx.ymin * self.c_h))
             pt2 = (int(result.bbx.xmax * self.c_w), int(result.bbx.ymax * self.c_h))
-            color = result.gender.getGenderColor() if result.qualifiedFace else ageGenderCore.Gender.indexToColor[-1]
+            color = result.gender.getGenderColor() if result.qualifiedFace else (207 ,207 ,207) #ageGenderCore.Gender.indexToColor[-1]
             cv2.rectangle(self.currentImage, pt1, pt2, color, 1)

@@ -12,8 +12,8 @@ from keras.preprocessing.image import ImageDataGenerator
 from utils import FacialFeature
 
 class Gender:
-    indexToColor  = {-1 : (207 ,207 ,207) , 0: (0, 255, 0), 1: (255, 0, 0)} 
-    indexToGender = {-1 : '' ,0: 'male', 1: 'female'}
+    indexToColor  = {-1 : (255, 213, 0) , 0: (0, 255, 0), 1: (255, 0, 0)} 
+    indexToGender = {-1 : 'neutral' ,0: 'male', 1: 'female'}
     def __init__(self ,index = -1):
         self.genderIndex = index
 

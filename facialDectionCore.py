@@ -8,6 +8,7 @@ Created on Thu Apr 18 02:07:42 2019
 import backbone.darknet as darknet
 import os
 import cv2
+import copy
 
 from utils import Dot ,Square  ,FacialFeature
 
@@ -37,6 +38,9 @@ class BBX:
         self.__calBBXShape() 
         self.__confirmInImage()
 
+    def __str__(self):
+        return f"({self.xmin} ,{self.ymin}) --> ({self.xmax} ,{self.ymax}) | area:{self.yolo.w * self.yolo.h}"
+
     def __calBBXShape(self):
         self.xmin  = int(round(self.yolo.x - (self.yolo.w / 2)))    #convertBack
         self.xmax  = int(round(self.yolo.x + (self.yolo.w / 2)))
@@ -59,7 +63,7 @@ class BBX:
                 self.fullFace = False
 
     def reCal(self ,yoloPred ,yolo_w ,yolo_h):
-        self.yolo = yoloPred
+        self.yolo = copy.copy(yoloPred)
         self.yolo.w = yolo_w
         self.yolo.h = yolo_h
         self.__calBBXShape() 
