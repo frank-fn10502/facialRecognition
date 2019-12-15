@@ -77,7 +77,7 @@ class FacialDectionCore:
         #----------------屬性-------------------------------------------
         self.mainImgSize = None #(W ,H)
         self.yoloTresh = 0.7
-        self.minimalBBX = Square(60, 60)
+        self.minimalBBX = Square(30, 30)
 
     '''
     def initYOLO(self ,configPath = "./cfg/yolov3-tiny-gender-test.cfg"
