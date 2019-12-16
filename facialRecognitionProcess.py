@@ -36,8 +36,9 @@ from faceAlignment import Preprocessing
 class AccData:  #Accumulated recognized facial data
     def __init__(self ,facialFeature):
         #-------------------參數----------------------------
-        self.dataList = CircularQueue(20)     #[(name1 ,info1) ,(name2 ,info2) , ...]
+        self.dataList = CircularQueue(30)     #[(name1 ,info1) ,(name2 ,info2) , ...]
 
+        self.leastDataLen = 10
         self.treshDisplay = 0.7
         self.treshIOU = 0.8
         self.num_counter = 0
@@ -88,12 +89,13 @@ class AccData:  #Accumulated recognized facial data
     def isThisAccData(self ,facialFeature):
         #return self.__calIOU(facialFeature)
         inSameArea ,iou = self.__calIOU(facialFeature)
-        if not inSameArea:
+        if not inSameArea and facialFeature.qualifiedFace:
             counter = 0
-            for f in self.dataList.getList():              
-                dist = np.sqrt(np.sum(np.square(facialFeature.emb - f.emb)))
-                if dist <= 0.85: #distTresh:
-                    counter += 1
+            for f in self.dataList.getList():
+                if f.qualifiedFace:          
+                    dist = np.sqrt(np.sum(np.square(facialFeature.emb - f.emb)))
+                    if dist <= 0.85: #distTresh:
+                        counter += 1
             if counter >= math.ceil(0.6 * self.dataList.len()):
                 inSameArea = True          
         return inSameArea ,iou
@@ -125,7 +127,7 @@ class AccData:  #Accumulated recognized facial data
 
     def calResult(self):
         self.qualifiedFace = True
-        if self.dataList.len() == self.dataList.size():            
+        if self.dataList.len() >= self.leastDataLen: #self.dataList.size():            
             for f in self.dataList.getList():
                 if not f.qualifiedFace:
                     self.qualifiedFace = False
@@ -157,7 +159,7 @@ class AccData:  #Accumulated recognized facial data
 
             self.gender = ageGenderCore.Gender(np.argmax(genderList,axis=0) - 1)
             self.gender = self.gender \
-                          if genderList[self.gender.genderIndex + 1] >= (self.dataList.size() * self.treshDisplay) else \
+                          if genderList[self.gender.genderIndex + 1] >= (self.dataList.len() * self.treshDisplay) else \
                           ageGenderCore.Gender(-1)
 
             self.age    = ageAvg / self.dataList.len()   
@@ -364,9 +366,11 @@ class Recognition:
                     croppedImage = self.facialPreprocessing.landmarks_RotImg(croppedImage)#旋轉
                     faceImages.append(croppedImage)
                     
+                    ori_img = self.__getFacialImgWithPatch(bbx)
                     faceImage_ori_list.append(self.facialPreprocessing.landmarks_RotImg(
-                                    self.facialPreprocessing.lightProcessing(
-                                            self.__getFacialImgWithPatch(bbx))))   
+                                                self.facialPreprocessing.lightProcessing(
+                                                ori_img)))   
+
             '''
             temp1 = np.asarray(faceImages[0]).shape
             temp2 = np.asarray(faceImage_ori_list[0]).shape
@@ -436,20 +440,57 @@ class Recognition:
 
     #-----------------------------private func----------------------------------------------
     def __getFacialImgWithPatch(self ,bbx):
-        pt1 = (int(bbx.xmin * self.c_w), int(bbx.ymin * self.c_h))
-        pt2 = (int(bbx.xmax * self.c_w), int(bbx.ymax * self.c_h))
-        croppedImage = self.currentImage[pt1[1]:pt2[1] ,pt1[0]:pt2[0]]
-
-        h ,w ,c = croppedImage.shape
+        pt1 = [int(bbx.xmin * self.c_w), int(bbx.ymin * self.c_h)]
+        pt2 = [int(bbx.xmax * self.c_w), int(bbx.ymax * self.c_h)]
+        w = pt2[0] - pt1[0]
+        h = pt2[1] - pt1[1]
         border_num = math.ceil(abs(h - w) / 2.0)
 
+        croppedImage = None
+        needRecal = True
+        topLeft = Dot(pt1[0] ,pt1[1])
+        bottomRight = Dot(pt2[0] ,pt2[1])
+        
+        if w > h:
+            pt1[1] = pt1[1] - border_num
+            pt2[1] = pt2[1] + border_num
+            if not (pt1[1] < 0 or pt2[1] > self.currentImage.shape[0]):
+                topLeft.y = pt1[1] 
+                bottomRight.y = pt2[1]
+                needRecal = False
+        else:
+            pt1[0] = pt1[0] - border_num
+            pt2[0] = pt2[0] + border_num
+            if not (pt1[0] < 0 or pt2[0] > self.currentImage.shape[1]):
+                topLeft.x = pt1[0] 
+                bottomRight.x = pt2[0]  
+                needRecal = False         
+
+        if not needRecal:
+            croppedImage = self.currentImage[topLeft.y:bottomRight.y ,topLeft.x:bottomRight.x]
+        else:
+            croppedImage = self.currentImage[topLeft.y:bottomRight.y ,topLeft.x:bottomRight.x]
+            if w > h:#上和下
+                croppedImage = cv2.copyMakeBorder(croppedImage, border_num, border_num, 0, 0, cv2.BORDER_REPLICATE, value=(0, 0, 0))
+            else:    #左和右
+                croppedImage = cv2.copyMakeBorder(croppedImage,  0, 0, border_num, border_num, cv2.BORDER_REPLICATE, value=(0, 0, 0)) 
+
+        print(f"needRecal:{needRecal}")
+        cv2.imwrite(r'other\temp\output.jpg', cv2.cvtColor(croppedImage, cv2.COLOR_BGR2RGB))
+        return croppedImage
+
+        '''
+        h ,w ,c = croppedImage.shape
+        border_num = math.ceil(abs(h - w) / 2.0)
+    
         img_patch = None
         if w > h:#上和下
             img_patch = cv2.copyMakeBorder(croppedImage, border_num, border_num, 0, 0, cv2.BORDER_CONSTANT, value=(0, 0, 0))
         else:    #左和右
             img_patch = cv2.copyMakeBorder(croppedImage,  0, 0, border_num, border_num, cv2.BORDER_CONSTANT, value=(0, 0, 0)) 
 
-        return img_patch      
+        return img_patch     
+        ''' 
 
     def __drawOnImg(self):
         # ---------------------劃出文字---------------------------------------------------
