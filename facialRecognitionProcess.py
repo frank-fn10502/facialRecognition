@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt#####
 
 import facialDectionCore
 import facialRecognitionCore
-from facialRecognitionCore import Identity
+from facialRecognitionCore import Identity ,RegisteredIdentity
 import ageGenderCore
 import emotionCore
 from utils import CircularQueue ,OutputHandler ,Dot ,Square  ,FacialFeature ,RecType
@@ -48,7 +48,7 @@ class AccData:  #Accumulated recognized facial data
         #-------------------變數---------------------------- 
         self.lastFacialFeature = None
 
-        self.qualifiedFace = True
+        self.qualifiedFace = False
         self.bbx      = facialFeature.bbx
         self.name     = facialFeature.identity.name if facialFeature.identity is not None else None
         self.gender   = facialFeature.gender
@@ -89,7 +89,7 @@ class AccData:  #Accumulated recognized facial data
     def isThisAccData(self ,facialFeature):
         #return self.__calIOU(facialFeature)
         inSameArea ,iou = self.__calIOU(facialFeature)
-        if not inSameArea and facialFeature.qualifiedFace:
+        if not inSameArea and facialFeature.qualifiedFace and facialFeature.emb is not None:
             counter = 0
             for f in self.dataList.getList():
                 if f.qualifiedFace:          
@@ -99,7 +99,6 @@ class AccData:  #Accumulated recognized facial data
             if counter >= math.ceil(0.6 * self.dataList.len()):
                 inSameArea = True          
         return inSameArea ,iou
-
 
     def __adjustBBX(self ,facialFeature):
         w = 0
@@ -280,9 +279,75 @@ class Recognition:
         self.regPreTime = time.time()
 
     def registered(self ,displayInfo = True):
-        facialFeatureList ,resultList = self.__preProcess()
+        #facialFeatureList ,resultList = self.__preProcess()
+        self.__preProcess(needRec=False)
+        self.resultList = self.__getResultList(self.facialFeatureList) #從累計的list中取得結果
         regFaceImg  = None
         regFaceInfo = None
+
+        #faceImages = []
+        #faceImage_ori_list = []
+        regFaceImg = None
+        regFaceFeature = None
+        for f in self.facialFeatureList:
+            #if f.qualifiedFace:
+            bbx = f.bbx
+            # 裁剪座標為[y0:y1 ,x0:x1]
+            #croppedImage = self.resizeImg[bbx.ymin:bbx.ymax ,bbx.xmin:bbx.xmax]
+            #croppedImage = self.facialPreprocessing.lightProcessing(croppedImage)#光線調整
+            #croppedImage = self.facialPreprocessing.landmarks_RotImg(croppedImage)#旋轉
+            #faceImages.append(croppedImage)
+            
+            ori_img = self.__getFacialImgWithPatch(bbx)
+            ori_img = self.facialPreprocessing.landmarks_RotImg(self.facialPreprocessing.lightProcessing(ori_img))  
+            if regFaceImg is None:
+                regFaceImg = ori_img
+                regFaceFeature = f
+            else:
+                h1 ,w1 ,c = regFaceImg
+                h2 ,w2 ,c = ori_img
+                if h1 * w1 < h2 * w2:
+                    regFaceImg = ori_img
+                    regFaceFeature = f
+
+        if regFaceImg is not None:
+            if time.time() - self.regPreTime >= self.saveInterval:
+                self.regPreTime = time.time()
+                if (self.faceitem == 1 and not self.needName) or (self.faceitem != 1 and not self.regDone):
+                    self.faceitem += 1
+                    self.currentRegImgList.append(regFaceImg)
+
+            if self.faceitem >= self.maxFaceCount and not self.regDone:   #開始寫檔                        
+                #if not os.path.exists(self.facialRecognition.fileRootPath + "/" + self.faceName + "/"):
+                #    os.makedirs(self.facialRecognition.fileRootPath + "/" + self.faceName + "/")
+                os.makedirs(f"{self.facialRecognition.fileRootPath}/{self.faceName}/" , exist_ok=True)
+
+                for regFaceImg ,i in zip( self.currentRegImgList ,range(0 ,10) ):
+                    cv2FaceImg = cv2.cvtColor(regFaceImg, cv2.COLOR_BGR2RGB)
+                    print(f'儲存照片: {self.faceName}{i}.jpg')
+                    cv2.imencode('.jpg', cv2FaceImg)[1].tofile(f"{self.facialRecognition.fileRootPath}/{self.faceName}/{i}.jpg")
+                print('儲存照片完成')
+               
+                for redIdentity in self.facialRecognition.regIdentityList:
+                    if redIdentity.name == self.faceName:
+                        self.facialRecognition.regIdentityList.remove(redIdentity)
+
+                embList = self.facialRecognition.faceCaculate(self.currentRegImgList)        
+                self.facialRecognition.regIdentityList.append(RegisteredIdentity(self.faceName, embList))
+
+                self.regDone  = True
+
+            if displayInfo:
+                self.displayTextList.append([f"完成:{self.faceitem * 10} %", (regFaceFeature.bbx.xmin, regFaceFeature.bbx.ymin)]) 
+        else:
+            if displayInfo:
+                h ,w ,c = self.currentImage.shape
+                self.displayTextList.append(["請靠近一點!!!" ,(w/2 ,h/2)])
+                print("找不到人臉")
+
+                for f in self.facialFeatureList:
+                    self.displayTextList.append([f"完成:{self.faceitem * 10} %", (0, 20)])                       
+        '''
         for info ,result in zip(facialFeatureList ,resultList):
             if ((info.ymin * self.c_h <= self.regAreaH) and (info.ymax * self.c_h >= self.regAreaPt2[1]) and 
                 (info.xmin * self.c_w >= self.regAreaW) and (info.xmax * self.c_w <= self.regAreaPt2[0]) ):
@@ -338,7 +403,14 @@ class Recognition:
             colorList = [ ( 0 ,0 ,255) for i in range(len(facialFeatureList))]
             self.__drawOnImg(facialFeatureList ,colorList)
             #self.__drawOnImg(facialFeatureList)
-
+        '''
+        if len(self.resultList) > 0:
+            for index ,result in enumerate( self.resultList):
+                print(f"{index}. " ,end='')
+                result.calResult()
+        
+        self.__displayInfo(self.__regInfo)
+        self. __drawBBX() 
         return self.faceitem == 1 and self.needName ,regFaceImg
 
     def recognized(self  ,displayInfo = True):
@@ -409,10 +481,13 @@ class Recognition:
                     result.calResult()
 
             if displayInfo:   
+                pre_t = time.time()
                 self.__drawOnImg()
+                draw_time = time.time() - pre_t
 
             #print(f"reco gender_age: {g_time:.2f}s | reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | emotion: {e_time:.2f} | total time: {id_time + g_time + yolo_time + e_time:.4f}")
             #print(f"reco id:{id_time:.2f}s | yolo: {yolo_time:.2f} | total time: {id_time + yolo_time:.4f}") 
+            print(f"drawTime:{draw_time:4.5f}")
             print("=" * 40 ,"\n")  
 
             #self.postAnswer()
@@ -494,7 +569,7 @@ class Recognition:
 
     def __drawOnImg(self):
         # ---------------------劃出文字---------------------------------------------------
-        self.__displayText()
+        self.__displayInfo(self.__facialInfo)
 
         #----------------------劃出bbx---------------------------------------------------- 
         self. __drawBBX()          
@@ -662,25 +737,40 @@ class Recognition:
         #-----------------------------------------------------
         return resultList
     
-    def __preProcess(self):
+    def __preProcess(self ,needRec = True):
         self.displayTextList.clear()
         self.currentImage = cv2.flip(self.frame ,1)  #左右翻轉
         self.currentImage = cv2.cvtColor(self.currentImage, cv2.COLOR_BGR2RGB)
 
         self.resizeImg ,self.facialFeatureList = self.facialDetection.captureData(self.currentImage)  #currentImage的畫面 ,從yolo網路中取得bbx的參數(存成list)
+        if not needRec:
+            for f in self.facialFeatureList:
+                f.qualifiedFace = False
 
-    def __displayText(self):
+    def __regInfo(self ,imgPIL):
+        for text in self.displayTextList: 
+            self.__displayText(imgPIL ,(text[1][0],text[1][1] - 20) ,text[0])
+
+    def __facialInfo(self ,imgPIL):
+        for result in self.resultList: 
+            if result.qualifiedFace:
+                self.__displayText(imgPIL ,(result.bbx.xmin * self.c_w ,result.bbx.ymin * self.c_h - 20) ,str(result))
+
+    def __displayInfo(self ,func):
+        imgPIL   = Image.fromarray(self.currentImage)
+        func(imgPIL)
+        self.currentImage = np.asarray(imgPIL)
+
+    def __displayText(self ,imgPIL ,position ,theStr):
         fontSize = 20
         color    = (255, 0, 0)
-        imgPIL   = Image.fromarray(self.currentImage)
+        #imgPIL   = Image.fromarray(self.currentImage)
         draw     = ImageDraw.Draw(imgPIL)
         font     = ImageFont.truetype('simsun.ttc', fontSize)
 
-        for result in self.resultList:     
-            if result.qualifiedFace:
-                draw.text((result.bbx.xmin * self.c_w ,result.bbx.ymin * self.c_h - 20), str(result), font=font, fill=color)
+        draw.text(position, theStr, font=font, fill=color)
               
-        self.currentImage = np.asarray(imgPIL)
+        #self.currentImage = np.asarray(imgPIL)
 
     def __drawBBX(self):
         for result in self.resultList:

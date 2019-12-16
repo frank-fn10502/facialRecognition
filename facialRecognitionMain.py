@@ -126,7 +126,7 @@ class mainWindows(QMainWindow):
                 needName ,faceImg = self.faceRecoProcess.registered()
                 if needName:
                     regDialog = RegisterDialog()
-                    regDialog.ui.faceImageLabel.setPixmap(QPixmap.fromImage(self.cvImgConvertToQImage(faceImg, True)))
+                    regDialog.ui.faceImageLabel.setPixmap(QPixmap.fromImage(self.cvImgConvertToQImage(faceImg)))
 
                     if regDialog.exec_():
                         self.faceRecoProcess.setRegName(regDialog.name)

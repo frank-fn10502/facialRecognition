@@ -32,10 +32,11 @@ class GenderAgeRec():
     def initModel(self):
         #self.model = load_model('weights/gender-age-Inceptionv3-20__11_20.h5' ,compile=False)
         #self.model = load_model('weights/gender-age-mobilenetv1_frank_ver3_3_50_v1.h5' ,compile=False)
-        
+
         self.model = load_model('weights/gender-age-MobilenetV1-36.h5' ,compile=False)
         #self.model = load_model('weights/gender-age-mobileNetv1-ver2.0.1-30.h5' ,compile=False)
         #self.model = load_model('weights/gender-age-mobileNetv1-ver2.0.2-18.h5' ,compile=False)
+        #self.model = load_model('weights/gender-age-mobileNetv1-ver2.0.3-24.h5' ,compile=False)
         #gender-age-mobilenetv2_frank_ver3_5 
         #gender-age-mobilenetv1_frank_ver3_3_50_v1\
 
