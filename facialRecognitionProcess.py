@@ -346,63 +346,7 @@ class Recognition:
 
                 for f in self.facialFeatureList:
                     self.displayTextList.append([f"完成:{self.faceitem * 10} %", (0, 20)])                       
-        '''
-        for info ,result in zip(facialFeatureList ,resultList):
-            if ((info.ymin * self.c_h <= self.regAreaH) and (info.ymax * self.c_h >= self.regAreaPt2[1]) and 
-                (info.xmin * self.c_w >= self.regAreaW) and (info.xmax * self.c_w <= self.regAreaPt2[0]) ):
-                
-                croppedImage = self.resizeImg[info.ymin:info.ymax,info.xmin:info.xmax]   # 裁剪座標為[y0:y1, x0:x1]
-                croppedImage = cv2.cvtColor(croppedImage, cv2.COLOR_BGR2RGB)
 
-                regFaceImg  = croppedImage
-                regFaceInfo = info
-
-            if result is not None:
-                result.addInfo(info)
-            else:
-                self.accDataList.append(AccData(info))
-
-        if regFaceImg is not None:
-            if time.time() - self.regPreTime >= self.saveInterval:
-                self.regPreTime = time.time()
-                if (self.faceitem == 1 and not self.needName) or (self.faceitem != 1 and not self.regDone):
-                    self.faceitem += 1
-                    self.currentRegImgList.append(regFaceImg)
-
-            if self.faceitem >= self.maxFaceCount and not self.regDone:   #開始寫檔                        
-                if not os.path.exists(self.facialRecognition.fileRootPath + "/" + self.faceName + "/"):
-                    os.makedirs(self.facialRecognition.fileRootPath + "/" + self.faceName + "/")
-
-                for regFaceImg ,i in zip( self.currentRegImgList ,range(0 ,10) ):
-                    print('儲存照片: {0}{1}.jpg'.format(self.faceName ,i))
-                    cv2.imencode('.jpg', regFaceImg)[1].tofile("{0}/{1}/{2}.jpg".format(self.facialRecognition.fileRootPath ,self.faceName ,i))
-                print('儲存照片完成')
-               
-                for identity in self.facialRecognition.identityList:
-                    if identity.name == self.faceName:
-                        self.facialRecognition.identityList.remove(identity)
-
-                embList = self.facialRecognition.faceCaculate(self.currentRegImgList)        
-                self.facialRecognition.identityList.append(Identity(self.faceName, embList))
-
-                self.regDone  = True
-
-            if displayInfo:
-                self.displayTextList.append(["完成:{0} %".format(self.faceitem * 10), (regFaceInfo.xmin, regFaceInfo.ymin), 20])
-        else:
-            if displayInfo:
-                self.displayTextList.append(["請靠近一點!!!", (self.regAreaPt1[0], self.regAreaPt1[1]), 16])
-                print("不在界線內")
-
-                for info in facialFeatureList:
-                    self.displayTextList.append(["完成:{0} %".format(self.faceitem * 10), (info.xmin, info.ymin), 20])
-
-        if displayInfo:
-            cv2.rectangle(self.currentImage, self.regAreaPt1, self.regAreaPt2,(255, 0, 0), 3)  #劃出註冊的有效區域 
-            colorList = [ ( 0 ,0 ,255) for i in range(len(facialFeatureList))]
-            self.__drawOnImg(facialFeatureList ,colorList)
-            #self.__drawOnImg(facialFeatureList)
-        '''
         if len(self.resultList) > 0:
             for index ,result in enumerate( self.resultList):
                 print(f"{index}. " ,end='')
