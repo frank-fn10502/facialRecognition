@@ -26,10 +26,10 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>GUI_Img/illuminati.jpg</pixmap>
+    <pixmap>../Image/testFace/0.jpg</pixmap>
    </property>
    <property name="scaledContents">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">

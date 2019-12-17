@@ -279,7 +279,6 @@ class Recognition:
         self.regPreTime = time.time()
 
     def registered(self ,displayInfo = True):
-        #facialFeatureList ,resultList = self.__preProcess()
         self.__preProcess(needRec=False)
         self.resultList = self.__getResultList(self.facialFeatureList) #從累計的list中取得結果
         regFaceImg  = None
@@ -304,8 +303,8 @@ class Recognition:
                 regFaceImg = ori_img
                 regFaceFeature = f
             else:
-                h1 ,w1 ,c = regFaceImg
-                h2 ,w2 ,c = ori_img
+                h1 ,w1 ,c = regFaceImg.shape
+                h2 ,w2 ,c = ori_img.shape
                 if h1 * w1 < h2 * w2:
                     regFaceImg = ori_img
                     regFaceFeature = f
@@ -439,9 +438,11 @@ class Recognition:
                     faceImages.append(croppedImage)
                     
                     ori_img = self.__getFacialImgWithPatch(bbx)
-                    faceImage_ori_list.append(self.facialPreprocessing.landmarks_RotImg(
-                                                self.facialPreprocessing.lightProcessing(
-                                                ori_img)))   
+                    ori_img = self.facialPreprocessing.landmarks_RotImg(ori_img)
+                    ori_img = self.facialPreprocessing.lightProcessing(ori_img)
+                    cv2.imwrite(r'other\temp\output2.jpg', cv2.cvtColor(ori_img, cv2.COLOR_BGR2RGB))
+
+                    faceImage_ori_list.append(ori_img)   
 
             '''
             temp1 = np.asarray(faceImages[0]).shape
