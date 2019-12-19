@@ -83,6 +83,7 @@ class Preprocessing:
             cv2.circle(im, pos, 3, color=(0, 255, 255))
         
         return im
+    
     def brightness(self, img ):
         cols, rows ,a= img.shape
         brightness = np.sum(img) / (255 * cols * rows)

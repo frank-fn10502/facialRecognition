@@ -439,7 +439,7 @@ class Recognition:
             if self.capDevice == RecType.SERVER:
                 self.serverCam.send_img(self.currentImage)
 
-            return self.__createJsonFile()
+            #return self.__createJsonFile()
  
     def stopAll(self):
         self.outputHandler.write = False
