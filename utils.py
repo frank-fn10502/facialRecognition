@@ -30,6 +30,7 @@ class FacialFeature:
         self.gender = None  #####
         self.age = None     #####
         self.emotion = None
+        self.emb = None
 
     def __str__(self):
         return f"{str(self.identity)} "

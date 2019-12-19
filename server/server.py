@@ -17,7 +17,7 @@ class ServerCam:
         ip = socket.gethostbyname(hostname)
         print(ip)
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.TCP_IP = ip#'127.0.0.1'
+        self.TCP_IP = '127.0.0.1'
         self.TCP_PORT = 8080
         self.s.bind((self.TCP_IP, self.TCP_PORT))
         self.s.listen(True)

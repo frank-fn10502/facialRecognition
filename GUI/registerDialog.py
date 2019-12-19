@@ -2,13 +2,11 @@
 
 # Form implementation generated from reading ui file 'registerDialog.ui'
 #
-# Created by: PyQt5 UI code generator 5.13.0
+# Created by: PyQt5 UI code generator 5.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
-
 from PyQt5 import QtCore, QtGui, QtWidgets
-
 
 class Ui_Dialog(object):
     def setupUi(self, Dialog):
@@ -17,8 +15,8 @@ class Ui_Dialog(object):
         self.faceImageLabel = QtWidgets.QLabel(Dialog)
         self.faceImageLabel.setGeometry(QtCore.QRect(70, 0, 231, 250))
         self.faceImageLabel.setText("")
-        self.faceImageLabel.setPixmap(QtGui.QPixmap("GUI_Img/illuminati.jpg"))
-        self.faceImageLabel.setScaledContents(False)
+        self.faceImageLabel.setPixmap(QtGui.QPixmap("../Image/testFace/0.jpg"))
+        self.faceImageLabel.setScaledContents(True)
         self.faceImageLabel.setObjectName("faceImageLabel")
         self.label_2 = QtWidgets.QLabel(Dialog)
         self.label_2.setGeometry(QtCore.QRect(10, 250, 111, 31))
@@ -38,3 +36,4 @@ class Ui_Dialog(object):
         Dialog.setWindowTitle(_translate("Dialog", "註冊"))
         self.label_2.setText(_translate("Dialog", "輸入註冊姓名:"))
         self.okButton.setText(_translate("Dialog", "確認"))
+

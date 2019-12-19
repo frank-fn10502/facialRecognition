@@ -62,7 +62,8 @@ class Preprocessing:
     
         angle = math.atan2(dy,dx) * 180. / math.pi # 计算角度
         RotateMatrix = cv2.getRotationMatrix2D(eye_center, angle, scale=1) # 计算射矩阵
-        RotImg = cv2.warpAffine(im, RotateMatrix, (im.shape[1], im.shape[0])) # 進行放這變換(旋轉)
+        RotImg = cv2.warpAffine(im, RotateMatrix, (im.shape[1], im.shape[0]) ,borderMode=cv2.BORDER_REPLICATE) # 進行放這變換(旋轉)
+        
         return RotImg
         
 #        return RotImg[zoon[0]:im.shape[0]-zoon[2],zoon[1]:im.shape[1]-zoon[3]]
@@ -82,6 +83,7 @@ class Preprocessing:
             cv2.circle(im, pos, 3, color=(0, 255, 255))
         
         return im
+    
     def brightness(self, img ):
         cols, rows ,a= img.shape
         brightness = np.sum(img) / (255 * cols * rows)

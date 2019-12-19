@@ -194,6 +194,7 @@ class FacialRecognitionCore:
                 identity.calResult()    #計算結果
                 #identityList.append(identity)  
                 f.identity = identity 
+                f.emb = emb
 
             #print('-'*30)         
         #return identityList

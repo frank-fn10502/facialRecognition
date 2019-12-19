@@ -1,6 +1,0 @@
-classes= 1
-train  = data/train.txt
-valid  = data/valid.txt
-names  = cfg/obj.names
-backup = backup/
-
